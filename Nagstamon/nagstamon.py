@@ -21,24 +21,12 @@
 
 import sys
 import os
-import os.path
 import Queue
 import platform
 import socket
 
-try:
-    import pygtk
-    pygtk.require("2.0")
-except Exception, err:
-    print
-    print err
-    print
-    print "Could not load pygtk, maybe you need to install python gtk."
-    print
-    import sys
-    sys.exit()
-import gtk
-import gobject
+from gi.repository import Gtk
+from gi.repository import GObject
 
 # Initiate Config
 # if modules are not available from central python install try the ones in the same directory
@@ -95,7 +83,7 @@ from Nagstamon import Actions
 ###### MAIN ##############
 
 # necessary gobject thread initialization
-gobject.threads_init()
+GObject.threads_init()
 
 # dictinary for servers
 servers = dict()
@@ -115,7 +103,7 @@ for server in conf.servers.values():
         # the auth dialog will fill the server's username and password with the given values
         if platform.system() == "Darwin":
             # MacOSX gets instable with default theme "Clearlooks" so use custom one with theme "Murrine"
-            gtk.rc_parse_string('gtk-theme-name = "Murrine"')
+            Gtk.rc_parse_string('gtk-theme-name = "Murrine"')
         GUI.AuthenticationDialog(server=server, Resources=Resources, conf=conf, debug_queue=debug_queue)
     created_server = Actions.CreateServer(server, conf, debug_queue)
     if created_server is not None:
@@ -132,7 +120,7 @@ converted and will be saved as the following directory:\n\n %s\n\n\
 If you used to start Nagstamon with a special configuration file please use this path or \
 create a new one for your custom start of Nagstamon." % ((conf.configdir))
     print "\n" + notice + "\n"
-    output.Dialog(type=gtk.MESSAGE_WARNING, buttons=gtk.BUTTONS_OK, message=notice)
+    output.Dialog(type=Gtk.MESSAGE_WARNING, buttons=Gtk.BUTTONS_OK, message=notice)
 
 # Start debugging loop
 debugloop = Actions.DebugLoop(conf=conf, debug_queue=debug_queue, output=output)
@@ -158,7 +146,7 @@ if str(conf.check_for_new_version) == "True":
 
 try:
     # Gtk Main Loop
-    gtk.main()
+    Gtk.main()
     # save config
     conf.SaveConfig(output=output)
 except Exception, err:
