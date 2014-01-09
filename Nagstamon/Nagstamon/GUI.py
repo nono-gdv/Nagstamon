@@ -17,34 +17,31 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
 
-try:
-    import pygtk
-    pygtk.require("2.0")
-except Exception, err:
-    print
-    print err
-    print
-    print "Could not load pygtk, maybe you need to install python gtk."
-    print
-    import sys
-    sys.exit()
+#from gi import pygtkcompat
+#pygtkcompat.enable()
+#pygtkcompat.enable_gtk(version="3.0")
+#import gtk
 
-import gtk
-import gobject
+from gi.repository import Gtk
+from gi.repository import Gdk
+from gi.repository import GdkPixbuf
+from gi.repository import GObject
 import os
 import platform
 
-# testing pynotify support
+# testing Notify support
 try:
-    import pynotify
-    pynotify.init("Nagstamon")
-except:
+    from gi.repository import Notify
+    Notify.init("Nagstamon")
+except Exception,err:
+    print err
     pass
 
 # testing Ubuntu AppIndicator support
 try:
-    import appindicator
-except:
+    from gi.repository import AppIndicator
+except Exception,err:
+    print err
     pass
 
 # needed for actions e.g. triggered by pressed buttons
@@ -61,7 +58,7 @@ class Sorting(object):
     """
     Sorting persistence purpose class
     Stores tuple pairs in form of:
-    (<column_id>, <gtk.SORT_ASCENDING|gtk.SORT_DESCENDING)
+    (<column_id>, <Gtk.SortType.ASCENDING|Gtk.SortType.DESCENDING)
     """
     def __init__(self, sorting_tuple_list=[], max_remember=8):
         self.sorting_tuple_list = sorting_tuple_list
@@ -123,12 +120,12 @@ class GUI(object):
         self.TAB_FG_COLORS = { "UNKNOWN":str(self.conf.color_unknown_text), "CRITICAL":str(self.conf.color_critical_text), "WARNING":str(self.conf.color_warning_text), "DOWN":str(self.conf.color_down_text), "UNREACHABLE":str(self.conf.color_unreachable_text) }
 
         # define popwin table liststore types
-        self.LISTSTORE_COLUMNS = [gobject.TYPE_STRING, gobject.TYPE_STRING, gobject.TYPE_STRING,\
-                                  gobject.TYPE_STRING, gobject.TYPE_STRING, gobject.TYPE_STRING,\
-                                  gobject.TYPE_STRING, gobject.TYPE_STRING, gobject.TYPE_STRING,\
-                                  gobject.TYPE_STRING,\
-                                  gtk.gdk.Pixbuf, gtk.gdk.Pixbuf, gtk.gdk.Pixbuf, gtk.gdk.Pixbuf,\
-                                  gtk.gdk.Pixbuf, gtk.gdk.Pixbuf, gtk.gdk.Pixbuf, gtk.gdk.Pixbuf]
+        self.LISTSTORE_COLUMNS = [GObject.TYPE_STRING, GObject.TYPE_STRING, GObject.TYPE_STRING,\
+                                  GObject.TYPE_STRING, GObject.TYPE_STRING, GObject.TYPE_STRING,\
+                                  GObject.TYPE_STRING, GObject.TYPE_STRING, GObject.TYPE_STRING,\
+                                  GObject.TYPE_STRING,\
+                                  GdkPixbuf.Pixbuf, GdkPixbuf.Pixbuf, GdkPixbuf.Pixbuf, GdkPixbuf.Pixbuf,\
+                                  GdkPixbuf.Pixbuf, GdkPixbuf.Pixbuf, GdkPixbuf.Pixbuf, GdkPixbuf.Pixbuf]
 
         # decide if the platform can handle SVG if not use PNG
         if platform.system() in ["Darwin", "Windows"]:
@@ -137,23 +134,26 @@ class GUI(object):
             self.BitmapSuffix = ".svg"
 
         # set app icon for all app windows
-        gtk.window_set_default_icon_from_file(self.Resources + os.sep + "nagstamon" + self.BitmapSuffix)
+        Gtk.Window.set_default_icon_from_file(self.Resources + os.sep + "nagstamon" + self.BitmapSuffix)
 
         if platform.system() == "Darwin":
             # MacOSX gets instable with default theme "Clearlooks" so use custom one with theme "Murrine"
-            gtk.rc_parse_string('gtk-theme-name = "Murrine"')
+            Gtk.rc_parse_string('gtk-theme-name = "Murrine"')
 
             # init MacOSX integration
             import gtk_osxapplication
             osxapp = gtk_osxapplication.OSXApplication()
             # prevent blocking
-            osxapp.connect("NSApplicationBlockTermination", gtk.main_quit)
+            osxapp.connect("NSApplicationBlockTermination", Gtk.main_quit)
             osxapp.ready()
 
         # icons for acknowledgement/downtime visualization
         self.STATE_ICONS = dict()
         for icon in ["acknowledged", "downtime", "flapping", "passive"]:
-            self.STATE_ICONS[icon] = gtk.gdk.pixbuf_new_from_file_at_size(self.Resources\
+            #self.STATE_ICONS[icon] = Gdk.pixbuf_new_from_file_at_size(self.Resources\
+            #                                                              + os.sep + "nagstamon_" + icon + self.BitmapSuffix,\
+            #                                                              int(self.fontsize/650), int(self.fontsize/650))
+            self.STATE_ICONS[icon] = GdkPixbuf.Pixbuf.new_from_file_at_size(self.Resources\
                                                                           + os.sep + "nagstamon_" + icon + self.BitmapSuffix,\
                                                                           int(self.fontsize/650), int(self.fontsize/650))
 
@@ -167,11 +167,14 @@ class GUI(object):
 
         # find out dimension of all monitors
         for m in range(self.statusbar.StatusBar.get_screen().get_n_monitors()):
-            monx0, mony0, monw, monh = self.statusbar.StatusBar.get_screen().get_monitor_geometry(m)
-            self.monitors[m] = (monx0, mony0, monw, monh)
+            #monx0, mony0, monw, monh = self.statusbar.StatusBar.get_screen().get_monitor_geometry(m)
+            #self.monitors[m] = (monx0, mony0, monw, monh)
+            mon = self.statusbar.StatusBar.get_screen().get_monitor_geometry(m)
+            self.monitors[m] = (mon.x, mon.y, mon.width, mon.height)
+            del mon
 
         # testing Ubuntu AppIndicator
-        if sys.modules.has_key("appindicator"):
+        if sys.modules.has_key("AppIndicator"):
             self.appindicator = AppIndicator(conf=self.conf, output=self)
 
         # check if statusbar is inside display boundaries
@@ -244,9 +247,9 @@ class GUI(object):
         self.IDS_COLUMNS_MAP = dict((id, column) for column, id in self.COLUMNS_IDS_MAP.iteritems())
 
         if str(self.conf.default_sort_order) == "Ascending":
-            self.startup_sort_order = gtk.SORT_ASCENDING
+            self.startup_sort_order = Gtk.SortType.ASCENDING
         else:
-            self.startup_sort_order = gtk.SORT_DESCENDING
+            self.startup_sort_order = Gtk.SortType.DESCENDING
 
         self.startup_sort_field = self.COLUMNS_IDS_MAP[self.conf.default_sort_field]
 
@@ -254,7 +257,7 @@ class GUI(object):
         self.last_sorting = {}
         for server in self.servers.values():
             self.last_sorting[server.get_name()] = Sorting([(self.startup_sort_field, self.startup_sort_order ),
-                                                            (server.HOST_COLUMN_ID, gtk.SORT_ASCENDING)],
+                                                            (server.HOST_COLUMN_ID, Gtk.SortType.ASCENDING)],
                                                            len(server.COLUMNS)+1) # stores sorting between table refresh
 
         # store once created dialogs here to minimize memory usage
@@ -417,7 +420,7 @@ class GUI(object):
                     if not type(server.ListStore) == type(None):
                         server.ListStore.clear()
                     else:
-                        server.ListStore = gtk.ListStore(*self.LISTSTORE_COLUMNS)
+                        server.ListStore = Gtk.ListStore(*self.LISTSTORE_COLUMNS)
                     if type(server.TreeView) == type(None):
                         # if treeview got lost recycle the one in servervbox
                         server.TreeView = self.popwin.ServerVBoxes[server.get_name()].TreeView
@@ -436,8 +439,8 @@ class GUI(object):
                                 line.append(self.TAB_BG_COLORS[item.status])
 
                                 # add a slightly changed version of bg_color for better recognition in treeview
-                                color = gtk.gdk.color_parse(self.TAB_BG_COLORS[item.status])
-                                color = gtk.gdk.Color(red = self._GetAlternateColor(color.red),\
+                                color = Gdk.color_parse(self.TAB_BG_COLORS[item.status])
+                                color = Gdk.Color(red = self._GetAlternateColor(color.red),\
                                                       green = self._GetAlternateColor(color.green),\
                                                       blue = self._GetAlternateColor(color.blue),\
                                                       pixel = color.pixel)
@@ -707,7 +710,7 @@ class GUI(object):
 
         # set the gtkbuilder file
         self.builderfile = self.Resources + os.sep + "acknowledge_dialog.ui"
-        self.acknowledge_xml = gtk.Builder()
+        self.acknowledge_xml = Gtk.Builder()
         self.acknowledge_xml.add_from_file(self.builderfile)
         self.acknowledge_dialog = self.acknowledge_xml.get_object("acknowledge_dialog")
 
@@ -764,7 +767,7 @@ class GUI(object):
         if Return key has been pressed in comment entry field interprete this as OK button being pressed
         """
         # KP_Enter seems to be the code for return key of numeric key block
-        if gtk.gdk.keyval_name(event.keyval) in ["Return", "KP_Enter"]:
+        if Gdk.keyval_name(event.keyval) in ["Return", "KP_Enter"]:
             self.Acknowledge(server=server)
             self.acknowledge_dialog.destroy()
 
@@ -804,7 +807,7 @@ class GUI(object):
         """
         # set the gtkbuilder file
         self.builderfile = self.Resources + os.sep + "downtime_dialog.ui"
-        self.downtime_xml = gtk.Builder()
+        self.downtime_xml = Gtk.Builder()
         self.downtime_xml.add_from_file(self.builderfile)
         self.downtime_dialog = self.downtime_xml.get_object("downtime_dialog")
 
@@ -876,7 +879,7 @@ class GUI(object):
         if Return key has been pressed in comment entry field interprete this as OK button being pressed
         """
         # KP_Enter seems to be the code for return key of numeric key block
-        if gtk.gdk.keyval_name(event.keyval) in ["Return", "KP_Enter"]:
+        if Gdk.keyval_name(event.keyval) in ["Return", "KP_Enter"]:
             self.Downtime(server=server)
             self.downtime_dialog.destroy()
 
@@ -913,7 +916,7 @@ class GUI(object):
 
         # set the gtkbuilder file
         self.builderfile = self.Resources + os.sep + "submit_check_result_dialog.ui"
-        self.submitcheckresult_xml = gtk.Builder()
+        self.submitcheckresult_xml = Gtk.Builder()
         self.submitcheckresult_xml.add_from_file(self.builderfile)
         self.submitcheckresult_dialog = self.submitcheckresult_xml.get_object("submit_check_result_dialog")
 
@@ -1013,7 +1016,7 @@ class GUI(object):
             if Return key has been pressed in comment entry field interprete this as OK button being pressed
         """
         # KP_Enter seems to be the code for return key of numeric key block
-        if gtk.gdk.keyval_name(event.keyval) in ["Return", "KP_Enter"]:
+        if Gdk.keyval_name(event.keyval) in ["Return", "KP_Enter"]:
             self.SubmitCheckResultOK(server=server)
             self.submitcheckresult_dialog.destroy()
 
@@ -1022,7 +1025,7 @@ class GUI(object):
         """
             about nagstamon
         """
-        about = gtk.AboutDialog()
+        about = Gtk.AboutDialog()
         about.set_name(self.name)
         about.set_version(self.version)
         about.set_website(self.website)
@@ -1075,23 +1078,23 @@ class GUI(object):
             license = "Nagstamon is licensed under GPL 2.0.\nYou should have got a LICENSE file distributed with nagstamon.\nGet it at http://www.gnu.org/licenses/gpl-2.0.txt."
         about.set_license(license)
 
-        # use gobject.idle_add() to be thread safe
-        gobject.idle_add(self.AddGUILock, str(self.__class__.__name__))
+        # use GObject.idle_add() to be thread safe
+        GObject.idle_add(self.AddGUILock, str(self.__class__.__name__))
         self.popwin.PopDown()
         about.run()
-        # use gobject.idle_add() to be thread safe
-        gobject.idle_add(self.DeleteGUILock, str(self.__class__.__name__))
+        # use GObject.idle_add() to be thread safe
+        GObject.idle_add(self.DeleteGUILock, str(self.__class__.__name__))
         about.destroy()
 
 
-    def Dialog(self, type=gtk.MESSAGE_ERROR, message="", buttons=gtk.BUTTONS_CANCEL):
+    def Dialog(self, type=Gtk.MessageType.ERROR, message="", buttons=Gtk.ButtonsType.CANCEL):
         """
             versatile message dialog
         """
         # close popwin to make sure the error dialog will not be covered by popwin
         self.popwin.PopDown()
-        self.dialog = gtk.MessageDialog(parent=None, flags=gtk.DIALOG_MODAL, type=type, buttons=buttons, message_format=str(message))
-        # gtk.Dialog.run() does a mini loop to wait
+        self.dialog = Gtk.MessageDialog(parent=None, flags=Gtk.DIALOG_MODAL, type=type, buttons=buttons, message_format=str(message))
+        # Gtk.Dialog.run() does a mini loop to wait
         self.dialog.run()
         self.dialog.destroy()
 
@@ -1106,16 +1109,16 @@ class GUI(object):
 
             # if used version is latest version only inform about
             if version_status == "latest":
-                self.dialog = gtk.MessageDialog(parent=None, flags=gtk.DIALOG_MODAL, type=gtk.MESSAGE_INFO, buttons=gtk.BUTTONS_OK, \
+                self.dialog = Gtk.MessageDialog(parent=None, flags=Gtk.DIALOG_MODAL, type=Gtk.MessageType.INFO, buttons=Gtk.ButtonsType.OK, \
                                            message_format="You are already using the\nlatest version of Nagstamon.\n\nLatest version: %s" % (version))
                 self.dialog.run()
                 self.dialog.destroy()
             # if used version is out of date offer downloading latest one
             elif version_status == "out_of_date":
-                self.dialog = gtk.MessageDialog(parent=None, flags=gtk.DIALOG_MODAL, type=gtk.MESSAGE_WARNING, buttons=gtk.BUTTONS_YES_NO, \
+                self.dialog = Gtk.MessageDialog(parent=None, flags=Gtk.DIALOG_MODAL, type=Gtk.MessageType.WARNING, buttons=Gtk.ButtonsType.YES_NO, \
                                            message_format="You are not using the latest version of Nagstamon.\n\nYour version:\t\t%s\nLatest version:\t%s\n\nDo you want to download the latest version?" % (self.version, version))
                 response = self.dialog.run()
-                if response == gtk.RESPONSE_YES:
+                if response == Gtk.RESPONSE_YES:
                     Actions.OpenNagstamonDownload(output=self)
                 self.dialog.destroy()
         except:
@@ -1161,7 +1164,7 @@ class GUI(object):
                             if ducuw[2] > 0 : trouble += ducuw[2] + " "
                             if ducuw[3] > 0 : trouble += ducuw[3] + " "
                             if ducuw[4] > 0 : trouble += ducuw[4]
-                            self.notify_bubble = pynotify.Notification ("Nagstamon", trouble, self.Resources + os.sep + "nagstamon" + self.BitmapSuffix)
+                            self.notify_bubble = Notify.Notification ("Nagstamon", trouble, self.Resources + os.sep + "nagstamon" + self.BitmapSuffix)
                             # only offer button for popup window when floating statusbar is used
                             if str(self.conf.statusbar_floating) == "True":
                                 self.notify_bubble.add_action("action", "Open popup window", self.popwin.PopUp)
@@ -1219,7 +1222,7 @@ class GUI(object):
     def AddGUILock(self, widget_name, widget=None):
         """
             add calling window to dictionary of open windows to keep the windows separated
-            to be called via gobject.idle_add
+            to be called via GObject.idle_add
         """
         self.GUILock[widget_name] = widget
 
@@ -1227,7 +1230,7 @@ class GUI(object):
     def DeleteGUILock(self, window_name):
         """
         delete calling window from dictionary of open windows to keep the windows separated
-        to be called via gobject.idle_add
+        to be called via GObject.idle_add
         """
         try:
             self.GUILock.pop(window_name)
@@ -1241,7 +1244,7 @@ class GUI(object):
         """
         if Return key has been pressed in entry field jump to given widget
         """
-        if gtk.gdk.keyval_name(event.keyval) in ["Return", "KP_Enter"]:
+        if Gdk.keyval_name(event.keyval) in ["Return", "KP_Enter"]:
             builder.get_object(next_widget).grab_focus()
 
 
@@ -1250,7 +1253,7 @@ class GUI(object):
             exit....
         """
         self.conf.SaveConfig(output=self)
-        gtk.main_quit()
+        Gtk.main_quit()
 
 
     def GetDialog(self, **kwds):
@@ -1262,34 +1265,34 @@ class GUI(object):
 
         if not self.dialog in self.Dialogs:
             if self.dialog == "Settings":
-                gobject.idle_add(self.output.AddGUILock, "Settings")
+                GObject.idle_add(self.output.AddGUILock, "Settings")
                 self.Dialogs["Settings"] = Settings(servers=self.servers, output=self.output, conf=self.conf, first_page=self.first_page)
                 self.Dialogs["Settings"].show()
 
             elif self.dialog == "NewServer":
-                gobject.idle_add(self.output.AddGUILock, "NewServer")
+                GObject.idle_add(self.output.AddGUILock, "NewServer")
                 self.Dialogs["NewServer"] = NewServer(servers=self.servers, output=self.output, settingsdialog=self.settingsdialog, conf=self.conf)
                 self.Dialogs["NewServer"].show()
 
             elif self.dialog == "EditServer":
-                gobject.idle_add(self.output.AddGUILock, "EditServer")
+                GObject.idle_add(self.output.AddGUILock, "EditServer")
                 self.Dialogs["EditServer"] = EditServer(servers=self.servers, output=self.output, settingsdialog=self.settingsdialog, conf=self.conf, server=self.selected_server)
                 self.Dialogs["EditServer"].show()
 
             elif self.dialog == "NewAction":
-                gobject.idle_add(self.output.AddGUILock, "NewAction")
+                GObject.idle_add(self.output.AddGUILock, "NewAction")
                 self.Dialogs["NewAction"] = NewAction(output=self.output, settingsdialog=self.settingsdialog, conf=self.conf)
                 self.Dialogs["NewAction"].show()
 
             elif self.dialog == "EditAction":
-                gobject.idle_add(self.output.AddGUILock, "EditAction")
+                GObject.idle_add(self.output.AddGUILock, "EditAction")
                 self.Dialogs["EditAction"] = EditAction(output=self.output, settingsdialog=self.settingsdialog, conf=self.conf, action=self.selected_action)
                 self.Dialogs["EditAction"].show()
         else:
             # when being reused some dialogs need some extra values
             if self.dialog in ["Settings", "NewServer", "EditServer", "NewAction", "EditAction"]:
                 self.output.popwin.Close()
-                gobject.idle_add(self.output.AddGUILock, self.dialog)
+                GObject.idle_add(self.output.AddGUILock, self.dialog)
                 if self.dialog == "Settings":
                     self.Dialogs["Settings"].first_page = self.first_page
                 if self.dialog == "EditServer":
@@ -1311,13 +1314,13 @@ class StatusBar(object):
         self._CreateFloatingStatusbar()
 
         # image for logo in statusbar
-        self.nagstamonLogo = gtk.Image()
+        self.nagstamonLogo = Gtk.Image()
         self.nagstamonLogo.set_from_file(self.output.Resources + os.sep + "nagstamon_small" + self.output.BitmapSuffix)
 
         # icons for systray
         self.SYSTRAY_ICONS = dict()
         for color in ["green", "yellow", "red", "darkred", "orange", "black","error"]:
-            self.SYSTRAY_ICONS[color] = gtk.gdk.pixbuf_new_from_file(self.output.Resources + os.sep + "nagstamon_" + color + self.output.BitmapSuffix)
+            self.SYSTRAY_ICONS[color] = GdkPixbuf.Pixbuf.new_from_file(self.output.Resources + os.sep + "nagstamon_" + color + self.output.BitmapSuffix)
 
         # 2 versions of label text for notification
         self.statusbar_labeltext = ""
@@ -1325,15 +1328,15 @@ class StatusBar(object):
         self.Flashing = False
 
         # Label for display
-        self.Label = gtk.Label()
+        self.Label = Gtk.Label()
 
         # statusbar hbox container for logo and status label
-        self.HBox = gtk.HBox()
+        self.HBox = Gtk.HBox()
 
         # Use EventBox because Label cannot get events
-        self.LogoEventbox = gtk.EventBox()
+        self.LogoEventbox = Gtk.EventBox()
         self.LogoEventbox.add(self.nagstamonLogo)
-        self.EventBoxLabel = gtk.EventBox()
+        self.EventBoxLabel = Gtk.EventBox()
         self.EventBoxLabel.add(self.Label)
         self.HBox.add(self.LogoEventbox)
         self.HBox.add(self.EventBoxLabel)
@@ -1347,14 +1350,14 @@ class StatusBar(object):
         # ...move statusbar in case it is floating to its last saved position and show it
             self.StatusBar.show_all()
         else:
-            self.StatusBar.hide_all()
+            self.StatusBar.hide()
 
         # put Systray icon into statusbar object
         # on MacOSX use only dummy
         if platform.system() == "Darwin":
             self.SysTray = DummyStatusIcon()
         else:
-            self.SysTray = gtk.StatusIcon()
+            self.SysTray = Gtk.StatusIcon()
         self.SysTray.set_from_file(self.output.Resources + os.sep + "nagstamon" + self.output.BitmapSuffix)
 
         # if systray icon should be shown show it
@@ -1367,21 +1370,21 @@ class StatusBar(object):
         self.CalculateFontSize()
 
         # Popup menu for statusbar
-        self.Menu = gtk.Menu()
+        self.Menu = Gtk.Menu()
         for i in ["Refresh", "Recheck all", "-----", "Monitors", "-----", "Settings...", "Save position", "About", "Exit"]:
             if i == "-----":
-                menu_item = gtk.SeparatorMenuItem()
+                menu_item = Gtk.SeparatorMenuItem()
                 self.Menu.append(menu_item)
             else:
                 if i == "Monitors":
                     monitor_items = list(self.output.servers)
                     monitor_items.sort(key=str.lower)
                     for m in monitor_items:
-                        menu_item = gtk.MenuItem(m)
+                        menu_item = Gtk.MenuItem(m)
                         menu_item.connect("activate", self.MenuResponseMonitors, m)
                         self.Menu.append(menu_item)
                 else:
-                    menu_item = gtk.MenuItem(i)
+                    menu_item = Gtk.MenuItem(i)
                     menu_item.connect("activate", self.MenuResponse, i)
                     self.Menu.append(menu_item)
 
@@ -1412,9 +1415,9 @@ class StatusBar(object):
         """
         # TOPLEVEL seems to be more standard compliant
         if platform.system() == "Windows" or platform.system() == "Darwin":
-            self.StatusBar = gtk.Window(gtk.WINDOW_POPUP)
+            self.StatusBar = Gtk.Window(Gtk.WindowType.POPUP)
         else:
-            self.StatusBar = gtk.Window(gtk.WINDOW_TOPLEVEL)
+            self.StatusBar = Gtk.Window(Gtk.WindowType.TOPLEVEL)
         self.StatusBar.set_decorated(False)
         self.StatusBar.set_keep_above(True)
         # newer Ubuntus place a resize widget onto floating statusbar - please don't!
@@ -1424,9 +1427,9 @@ class StatusBar(object):
         # there are some hint types to experiment with
         # see https://github.com/HenriWahl/Nagstamon/issues/51
         if platform.system() == "Windows":
-            self.StatusBar.set_type_hint(gtk.gdk.WINDOW_TYPE_HINT_UTILITY)
+            self.StatusBar.set_type_hint(Gdk.WindowTypeHint.UTILITY)
         else:
-            self.StatusBar.set_type_hint(gtk.gdk.WINDOW_TYPE_HINT_MENU)
+            self.StatusBar.set_type_hint(Gdk.WindowTypeHint.MENU)
         self.StatusBar.set_property("skip-taskbar-hint", True)
         self.StatusBar.set_skip_taskbar_hint(True)
 
@@ -1481,7 +1484,7 @@ class StatusBar(object):
         if menu_entry == "About": self.output.AboutDialog()
         if menu_entry == "Exit":
             self.conf.SaveConfig(output=self.output)
-            gtk.main_quit()
+            Gtk.main_quit()
 
 
     def Clicked(self, widget=None, event=None):
@@ -1547,7 +1550,7 @@ class StatusBar(object):
         self.output.popwin.setShowable()
         self.Moving = False
         # to avoid wrong placed popwin in macosx
-        gobject.idle_add(self.output.RefreshDisplayStatus)
+        GObject.idle_add(self.output.RefreshDisplayStatus)
 
 
     def SysTrayClicked(self, widget=None, event=None):
@@ -1659,11 +1662,13 @@ class StatusBar(object):
             # workaround for statusbar-that-overlaps-popup-menu (oh my god)
             if platform.system() == "Windows":
                 if not "Menu" in dir(self):
-                    self.StatusBar.window.raise_()
+                    #self.StatusBar.window.raise_()
+                   self.StatusBar.get_window().raise_()
             # on Linux & Co. only raise if popwin is not shown because otherwise
             # the statusbar shadow overlays the popwin on newer desktop environments
             elif self.output.popwin.showPopwin == False:
-                self.StatusBar.window.raise_()
+                #self.StatusBar.window.raise_()
+                self.StatusBar.get_window().raise_()
 
 
 class Popwin(object):
@@ -1676,9 +1681,9 @@ class Popwin(object):
 
         # Initialize type popup
         if platform.system() == "Darwin":
-            self.Window = gtk.Window(gtk.WINDOW_POPUP)
+            self.Window = Gtk.Window(Gtk.WindowType.POPUP)
         else:
-            self.Window = gtk.Window(gtk.WINDOW_TOPLEVEL)
+            self.Window = Gtk.Window(Gtk.WindowType.TOPLEVEL)
             self.Window.set_title(self.output.name + " " + self.output.version)
 
         # notice leaving cursor
@@ -1688,30 +1693,30 @@ class Popwin(object):
         self.popwinx0 = self.popwiny0 = 0
         self.popwinwidth = self.popwinheight = 0
 
-        self.AlMonitorLabel = gtk.Alignment(xalign=0, yalign=0.5)
-        self.AlMonitorComboBox = gtk.Alignment(xalign=0, yalign=0.5)
-        self.AlMenu = gtk.Alignment(xalign=1.0, yalign=0.5)
-        self.AlVBox = gtk.Alignment(xalign=0.5, yalign=0, xscale=1, yscale=0)
+        self.AlMonitorLabel = Gtk.Alignment(xalign=0, yalign=0.5)
+        self.AlMonitorComboBox = Gtk.Alignment(xalign=0, yalign=0.5)
+        self.AlMenu = Gtk.Alignment(xalign=1.0, yalign=0.5)
+        self.AlVBox = Gtk.Alignment(xalign=0.5, yalign=0, xscale=1, yscale=0)
 
-        self.VBox = gtk.VBox()
-        self.HBoxAllButtons = gtk.HBox()
-        self.HBoxNagiosButtons = gtk.HBox()
-        self.HBoxMenu = gtk.HBox()
-        self.HBoxCombobox = gtk.HBox()
+        self.VBox = Gtk.VBox()
+        self.HBoxAllButtons = Gtk.HBox()
+        self.HBoxNagiosButtons = Gtk.HBox()
+        self.HBoxMenu = Gtk.HBox()
+        self.HBoxCombobox = Gtk.HBox()
 
         # put a name tag where there buttons had been before
         # image for logo in statusbar
         # use pixbuf to keep transparency which itself should keep some padding if popup is oversized
-        self.NagstamonLabel = gtk.Image()
-        self.NagstamonLabel_Pixbuf = gtk.gdk.pixbuf_new_from_file(self.output.Resources + os.sep + "nagstamon_label.png")
+        self.NagstamonLabel = Gtk.Image()
+        self.NagstamonLabel_Pixbuf = GdkPixbuf.Pixbuf.new_from_file(self.output.Resources + os.sep + "nagstamon_label.png")
         self.NagstamonLabel.set_from_pixbuf(self.NagstamonLabel_Pixbuf)
-        self.NagstamonVersion = gtk.Label("  " + self.output.version)
+        self.NagstamonVersion = Gtk.Label("  " + self.output.version)
 
         self.HBoxNagiosButtons.add(self.NagstamonLabel)
         self.HBoxNagiosButtons.add(self.NagstamonVersion)
 
         self.AlMonitorLabel.add(self.HBoxNagiosButtons)
-        self.ComboboxMonitor = gtk.combo_box_new_text()
+        self.ComboboxMonitor = Gtk.ComboBoxText()
         # fill Nagios server combobox with nagios servers
         self.ComboboxMonitor.append_text("Choose monitor...")
         submenu_items = list(self.output.servers)
@@ -1734,7 +1739,7 @@ class Popwin(object):
         self.HBoxMenu.add(self.ButtonSettings)
 
         # nice separator
-        self.HBoxMenu.add(gtk.VSeparator())
+        self.HBoxMenu.add(Gtk.VSeparator())
         self.ButtonMenu = ButtonWithIcon(output=self.output, label="", icon="menu.png")
         self.ButtonMenu.set_no_show_all(True)
         self.HBoxMenu.add(self.ButtonMenu)
@@ -1783,24 +1788,24 @@ class Popwin(object):
 
         # create a scrollable area for the treeview in case it is larger than the screen
         # in case there are too many failed services and hosts
-        self.ScrolledWindow = gtk.ScrolledWindow()
-        self.ScrolledWindow.set_policy(gtk.POLICY_NEVER, gtk.POLICY_AUTOMATIC)
+        self.ScrolledWindow = Gtk.ScrolledWindow()
+        self.ScrolledWindow.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
 
         # try putting everything status-related into a scrolled viewport
-        self.ScrolledVBox = gtk.VBox()
+        self.ScrolledVBox = Gtk.VBox()
         #self.ScrolledWindow.add_with_viewport(self.ScrolledVBox)
-        self.ScrolledViewport = gtk.Viewport()
+        self.ScrolledViewport = Gtk.Viewport()
         self.ScrolledViewport.add(self.ScrolledVBox)
         self.ScrolledWindow.add(self.ScrolledViewport)
 
         # menu in upper right corner for fullscreen mode
-        self.Menu = gtk.Menu()
+        self.Menu = Gtk.Menu()
         for i in ["About", "Exit"]:
             if i == "-----":
-                menu_item = gtk.SeparatorMenuItem()
+                menu_item = Gtk.SeparatorMenuItem()
                 self.Menu.append(menu_item)
             else:
-                menu_item = gtk.MenuItem(i)
+                menu_item = Gtk.MenuItem(i)
                 menu_item.connect("activate", self.MenuResponse, i)
                 self.Menu.append(menu_item)
         self.Menu.show_all()
@@ -1863,9 +1868,9 @@ class Popwin(object):
             # Windows will have an entry on taskbar when not using HINT_UTILITY
             self.Window.set_visible(False)
             if platform.system() == "Windows":
-                self.Window.set_type_hint(gtk.gdk.WINDOW_TYPE_HINT_UTILITY)
+                self.Window.set_type_hint(Gdk.WindowTypeHint.UTILITY)
             else:
-                self.Window.set_type_hint(gtk.gdk.WINDOW_TYPE_HINT_MENU)
+                self.Window.set_type_hint(Gdk.WindowTypeHint.MENU)
             #self.Window.set_visible(True)
 
             # make a nice popup of the toplevel window
@@ -1884,10 +1889,13 @@ class Popwin(object):
             # find out dimension of all monitors
             if len(self.output.monitors) == 0:
                 for m in range(self.Window.get_screen().get_n_monitors()):
-                    monx0, mony0, monw, monh = self.Window.get_screen().get_monitor_geometry(m)
-                    self.output.monitors[m] = (monx0, mony0, monw, monh)
+                    #monx0, mony0, monw, monh = self.Window.get_screen().get_monitor_geometry(m)
+                    #self.output.monitors[m] = (monx0, mony0, monw, monh)
+                    mon = self.statusbar.StatusBar.get_screen().get_monitor_geometry(m)
+                    self.monitors[m] = (mon.x, mon.y, mon.width, mon.height)
+                    del mon
             self.Window.set_visible(False)
-            self.Window.set_type_hint(gtk.gdk.WINDOW_TYPE_HINT_NORMAL)
+            self.Window.set_type_hint(Gdk.WindowTypeHint.NORMAL)
             self.Window.set_visible(True)
             x0, y0, width, height = self.output.monitors[int(self.output.conf.fullscreen_display)]
             self.Window.move(x0, y0)
@@ -1970,8 +1978,8 @@ class Popwin(object):
                 # switch off Notification
                 self.output.NotificationOff()
                 # register as open window
-                # use gobject.idle_add() to be thread safe
-                gobject.idle_add(self.output.AddGUILock, str(self.__class__.__name__))
+                # use GObject.idle_add() to be thread safe
+                GObject.idle_add(self.output.AddGUILock, str(self.__class__.__name__))
 
         # position and resize...
         #self.calculate_coordinates = True
@@ -2019,12 +2027,12 @@ class Popwin(object):
         self.PopDown(widget, event)
         # after a shortdelay set pointer_left_popwin back to false, in the meantime
         # there will be no extra flickering popwin coming from hovered statusbar
-        gobject.timeout_add(250, self.SetPointerLeftPopwinFalse)
+        GObject.timeout_add(250, self.SetPointerLeftPopwinFalse)
 
 
     def SetPointerLeftPopwinFalse(self):
         """
-        function to be called by gobject.
+        function to be called by GObject.
         """
         self.pointer_left_popwin = False
         return False
@@ -2043,11 +2051,20 @@ class Popwin(object):
                 # access to rootwindow to get the pointers coordinates
                 rootwin = self.output.statusbar.StatusBar.get_screen().get_root_window()
                 # get position of the pointer
-                mousex, mousey, foo = rootwin.get_pointer()
+                #mousex = rootwin.get_pointer().x
+                #mousey = rootwin.get_pointer().y
+                #print rootwin.get_device_position(rootwin.get_display(event.device))
+                #foo, mousex, mousey, bar = rootwin.get_device_position(event.device)
+                mousex = event.x_root
+                mousey = event.y_root
                 # get position of popwin
+                #popwinx0 = self.Window.get_position().x
+                #popwiny0 = self.Window.get_position().y
                 popwinx0, popwiny0 = self.Window.get_position()
 
                 # actualize values for width and height
+                #self.popwinwidth  = self.Window.get_size().width
+                #self.popwinheight = self.Window.get_size().height
                 self.popwinwidth, self.popwinheight = self.Window.get_size()
 
                 # If pointer is outside popwin close it
@@ -2069,9 +2086,9 @@ class Popwin(object):
         if str(self.output.conf.fullscreen) == "False":
             # unregister popwin - seems to be called even if popwin is not open so check before unregistering
             if self.output.GUILock.has_key("Popwin"):
-                # use gobject.idle_add() to be thread safe
-                gobject.idle_add(self.output.DeleteGUILock, self.__class__.__name__)
-            #self.Window.hide_all()
+                # use GObject.idle_add() to be thread safe
+                GObject.idle_add(self.output.DeleteGUILock, self.__class__.__name__)
+            #self.Window.hide()
             self.Window.set_visible(False)
             # notification off because user had a look to hosts/services recently
             self.output.NotificationOff()
@@ -2141,11 +2158,13 @@ class Popwin(object):
         screenx0, screeny0, screenwidth, screenheight = self.output.monitors[self.output.current_monitor]
 
         # limit size of treeview
-        treeviewwidth, treeviewheight = self.ScrolledVBox.size_request()
+        treeviewwidth = self.ScrolledVBox.size_request().width
+        treeviewheight = self.ScrolledVBox.size_request().height
         if treeviewwidth > screenwidth: treeviewwidth = screenwidth
 
         # get dimensions of top button bar
-        self.buttonswidth, self.buttonsheight = self.HBoxAllButtons.size_request()
+        self.buttonswidth = self.HBoxAllButtons.size_request().width
+        self.buttonsheight = self.HBoxAllButtons.size_request().height
 
         # later GNOME might need some extra heightbuffer if using dual screen
         if treeviewheight > screenheight - self.buttonsheight - statusbarheight - self.heightbuffer_external:
@@ -2223,17 +2242,19 @@ class Popwin(object):
             real_winwidth, real_winheight = self.Window.get_size()
             real_scrolledwinwidth, real_scrolledwinheight = self.ScrolledWindow.get_size_request()
             if real_scrolledwinheight + self.buttonsheight < real_winheight and not (self.popwinheight == treeviewheight + self.buttonsheight):
-                self.Window.hide_all()
+                self.Window.hide()
                 self.Window.show_all()
-            self.Window.window.move_resize(self.popwinx0, self.popwiny0, self.popwinwidth, self.popwinheight)
+            self.Window.move(self.popwinx0, self.popwiny0)
+            self.Window.resize(self.popwinwidth, self.popwinheight)
 
             # if popwin is misplaced please correct it here
             if self.Window.get_position() != (self.popwinx0, self.popwiny0):
                 # would be nice if there could be any way to avoid flickering...
                 # but move/resize only works after a hide_all()/show_all() mantra
-                self.Window.hide_all()
+                self.Window.hide()
                 self.Window.show_all()
-                self.Window.window.move_resize(self.popwinx0, self.popwiny0, self.popwinwidth, self.popwinheight)
+                self.Window.move(self.popwinx0, self.popwiny0)
+                self.Window.resize(self.popwinwidth, self.popwinheight)
 
         # statusbar pulls popwin to the top... with silly-windows-workaround(tm) included
         if str(self.conf.statusbar_floating) == "True": self.output.statusbar.Raise()
@@ -2299,7 +2320,7 @@ class Popwin(object):
         if menu_entry == "Exit": self.output.Exit(True)
 
 
-class ServerVBox(gtk.VBox):
+class ServerVBox(Gtk.VBox):
     """
     VBox which contains all infos about one monitor server: Name, Buttons, Treeview
     """
@@ -2308,12 +2329,12 @@ class ServerVBox(gtk.VBox):
         for k in kwds: self.__dict__[k] = kwds[k]
 
         # initalize VBox
-        gtk.VBox.__init__(self)
+        Gtk.VBox.__init__(self)
 
         # elements of server info VBox
-        self.Label = gtk.Label()
+        self.Label = Gtk.Label()
         # once again a Windows(TM) workaround
-        self.Server_EventBox = gtk.EventBox()
+        self.Server_EventBox = Gtk.EventBox()
 
         # create icony buttons
         self.ButtonMonitor = ButtonWithIcon(output=self.output, label="Monitor", icon="nagios.png")
@@ -2322,16 +2343,16 @@ class ServerVBox(gtk.VBox):
         self.ButtonHistory = ButtonWithIcon(output=self.output, label="History", icon="history.png")
 
         # Label with status information
-        self.LabelStatus = gtk.Label("")
+        self.LabelStatus = Gtk.Label("")
 
         # order the elements
         # now vboxing the elements to add a line in case authentication failed - so the user should auth here again
-        self.VBox = gtk.VBox()
+        self.VBox = Gtk.VBox()
         # first line for usual monitor shortlink buttons
-        #self.HBox = gtk.HBox(homogeneous=True)
-        self.HBox = gtk.HBox()
-        self.HBoxLeft = gtk.HBox()
-        self.HBoxRight = gtk.HBox()
+        #self.HBox = Gtk.HBox(homogeneous=True)
+        self.HBox = Gtk.HBox()
+        self.HBoxLeft = Gtk.HBox()
+        self.HBoxRight = Gtk.HBox()
         self.HBoxLeft.add(self.Label)
         # leave some space around the label
         self.Label.set_padding(5, 5)
@@ -2339,12 +2360,12 @@ class ServerVBox(gtk.VBox):
         self.HBoxLeft.add(self.ButtonHosts)
         self.HBoxLeft.add(self.ButtonServices)
         self.HBoxLeft.add(self.ButtonHistory)
-        self.HBoxLeft.add(gtk.VSeparator())
+        self.HBoxLeft.add(Gtk.VSeparator())
         self.HBoxLeft.add(self.LabelStatus)
 
-        self.AlignmentLeft = gtk.Alignment(xalign=0, xscale=0.05, yalign=0)
+        self.AlignmentLeft = Gtk.Alignment(xalign=0, xscale=0.05, yalign=0)
         self.AlignmentLeft.add(self.HBoxLeft)
-        self.AlignmentRight = gtk.Alignment(xalign=0, xscale=0.0, yalign=0.5)
+        self.AlignmentRight = Gtk.Alignment(xalign=0, xscale=0.0, yalign=0.5)
         self.AlignmentRight.add(self.HBoxRight)
 
         self.HBox.add(self.AlignmentLeft)
@@ -2353,15 +2374,15 @@ class ServerVBox(gtk.VBox):
         self.VBox.add(self.HBox)
 
         # Auth line
-        self.HBoxAuth = gtk.HBox()
-        self.AuthLabelUsername = gtk.Label("Username:")
-        self.AuthEntryUsername = gtk.Entry()
+        self.HBoxAuth = Gtk.HBox()
+        self.AuthLabelUsername = Gtk.Label("Username:")
+        self.AuthEntryUsername = Gtk.Entry()
         self.AuthEntryUsername.set_can_focus(True)
-        self.AuthLabelPassword = gtk.Label("Password:")
-        self.AuthEntryPassword = gtk.Entry()
+        self.AuthLabelPassword = Gtk.Label("Password:")
+        self.AuthEntryPassword = Gtk.Entry()
         self.AuthEntryPassword.set_visibility(False)
-        self.AuthCheckbuttonSave = gtk.CheckButton("Save password")
-        self.AuthButtonOK = gtk.Button("OK")
+        self.AuthCheckbuttonSave = Gtk.CheckButton("Save password")
+        self.AuthButtonOK = Gtk.Button("OK")
 
         self.HBoxAuth.add(self.AuthLabelUsername)
         self.HBoxAuth.add(self.AuthEntryUsername)
@@ -2370,29 +2391,29 @@ class ServerVBox(gtk.VBox):
         self.HBoxAuth.add(self.AuthCheckbuttonSave)
         self.HBoxAuth.add(self.AuthButtonOK)
 
-        self.AlignmentAuth = gtk.Alignment(xalign=0, xscale=0.05, yalign=0)
+        self.AlignmentAuth = Gtk.Alignment(xalign=0, xscale=0.05, yalign=0)
         self.AlignmentAuth.add(self.HBoxAuth)
 
         self.VBox.add(self.AlignmentAuth)
 
         # start with hidden auth as default
         self.HBoxAuth.set_no_show_all(True)
-        self.HBoxAuth.hide_all()
+        self.HBoxAuth.hide()
 
         self.Server_EventBox.add(self.VBox)
         self.add(self.Server_EventBox)
 
         # new TreeView handling, not generating new items with every refresh cycle
-        self.server.TreeView = gtk.TreeView()
+        self.server.TreeView = Gtk.TreeView()
         # enable hover effect
         self.server.TreeView.set_hover_selection(True)
         # enable grid lines
         if str(self.output.conf.show_grid) == "True":
-            self.server.TreeView.set_grid_lines(gtk.TREE_VIEW_GRID_LINES_BOTH)
+            self.server.TreeView.set_grid_lines(Gtk.TreeViewGridLines.BOTH)
         else:
-            self.server.TreeView.set_grid_lines(gtk.TREE_VIEW_GRID_LINES_NONE)
+            self.server.TreeView.set_grid_lines(Gtk.TreeView.GridLines.NONE)
         # Liststore
-        self.server.ListStore = gtk.ListStore(*self.output.LISTSTORE_COLUMNS)
+        self.server.ListStore = Gtk.ListStore(*self.output.LISTSTORE_COLUMNS)
 
         # offset to access host and service flag icons separately, stored in grand liststore
         # may grow with more supported flags
@@ -2403,18 +2424,18 @@ class ServerVBox(gtk.VBox):
         offset_color = {0:8, 1:9}
 
         for s, column in enumerate(self.server.COLUMNS):
-            tab_column = gtk.TreeViewColumn(column.get_label())
+            tab_column = Gtk.TreeViewColumn(column.get_label())
             self.server.TreeView.append_column(tab_column)
             # the first and second column hold hosts and service name which will get acknowledged/downtime flag
             # indicators added
             if s in [0, 1]:
                 # pixbuf for little icon
-                cell_img_ack = gtk.CellRendererPixbuf()
-                cell_img_down = gtk.CellRendererPixbuf()
-                cell_img_flap = gtk.CellRendererPixbuf()
-                cell_img_pass = gtk.CellRendererPixbuf()
+                cell_img_ack = Gtk.CellRendererPixbuf()
+                cell_img_down = Gtk.CellRendererPixbuf()
+                cell_img_flap = Gtk.CellRendererPixbuf()
+                cell_img_pass = Gtk.CellRendererPixbuf()
                 # host/service name
-                cell_txt = gtk.CellRendererText()
+                cell_txt = Gtk.CellRendererText()
                 # stuff all renders into one cell
                 tab_column.pack_start(cell_txt, False)
                 tab_column.pack_start(cell_img_ack, False)
@@ -2434,14 +2455,14 @@ class ServerVBox(gtk.VBox):
                 tab_column.add_attribute(cell_img_flap, "cell-background", offset_color[s % 2])
                 tab_column.set_attributes(cell_img_pass, pixbuf=13+offset_img[s])
                 tab_column.add_attribute(cell_img_pass, "cell-background", offset_color[s % 2])
-                tab_column.set_sizing(gtk.TREE_VIEW_COLUMN_AUTOSIZE)
+                tab_column.set_sizing(Gtk.TreeViewColumnSizing.AUTOSIZE)
             else:
                 # normal way for all other columns
-                cell_txt = gtk.CellRendererText()
+                cell_txt = Gtk.CellRendererText()
                 tab_column.pack_start(cell_txt, False)
                 tab_column.set_attributes(cell_txt, foreground=7, text=s)
                 tab_column.add_attribute(cell_txt, "cell-background", offset_color[s % 2 ])
-                tab_column.set_sizing(gtk.TREE_VIEW_COLUMN_AUTOSIZE)
+                tab_column.set_sizing(Gtk.TreeViewColumnSizing.AUTOSIZE)
 
             # set customized sorting
             if column.has_customized_sorting():
@@ -2473,7 +2494,7 @@ class ServerVBox(gtk.VBox):
             self.miserable_service = treeview.get_model()[path[0]][server.SERVICE_COLUMN_ID]
             self.miserable_status_info = treeview.get_model()[path[0]][server.STATUS_INFO_COLUMN_ID]
             # context menu for detailed status overview, opens with a mouse click onto a listed item
-            self.popupmenu = gtk.Menu()
+            self.popupmenu = Gtk.Menu()
 
             # add custom actions - this is just a test!
             actions_list=list(self.output.conf.actions)
@@ -2526,19 +2547,19 @@ class ServerVBox(gtk.VBox):
 
                 # populate context menu with service actions
                 if item_visible == True:
-                    menu_item = gtk.MenuItem(a)
+                    menu_item = Gtk.MenuItem(a)
                     menu_item.connect("activate", self.TreeviewPopupMenuResponse, a)
                     self.popupmenu.append(menu_item)
 
                 del action, item_visible
 
             # add "Edit actions..." menu entry
-            menu_item = gtk.MenuItem("Edit actions...")
+            menu_item = Gtk.MenuItem("Edit actions...")
             menu_item.connect("activate", self.TreeviewPopupMenuResponse, "Edit actions...")
             self.popupmenu.append(menu_item)
 
             # add separator to separate between connections and actions
-            self.popupmenu.append(gtk.SeparatorMenuItem())
+            self.popupmenu.append(Gtk.SeparatorMenuItem())
 
             # after the separator add actions
             # available default menu actions are monitor server dependent
@@ -2548,7 +2569,7 @@ class ServerVBox(gtk.VBox):
                    self.miserable_service and server.hosts[self.miserable_host].services[self.miserable_service].is_passive_only():
                     pass
                 else:
-                    menu_item = gtk.MenuItem(i)
+                    menu_item = Gtk.MenuItem(i)
                     menu_item.connect("activate", self.TreeviewPopupMenuResponse, i)
                     self.popupmenu.append(menu_item)
 
@@ -2640,7 +2661,7 @@ class ServerVBox(gtk.VBox):
             server.conf.servers[server.get_name()].save_password = True
             server.conf.SaveConfig(server=server)
 
-        self.HBoxAuth.hide_all()
+        self.HBoxAuth.hide()
         self.HBoxAuth.set_no_show_all(True)
 
         # refresh server label
@@ -2656,7 +2677,7 @@ class ServerVBox(gtk.VBox):
         """
         if Return key has been pressed in password entry field interprete this as OK button being pressed
         """
-        if gtk.gdk.keyval_name(event.keyval) in ["Return", "KP_Enter"]:
+        if Gdk.keyval_name(event.keyval) in ["Return", "KP_Enter"]:
             self.AuthEntryPassword.grab_focus()
 
 
@@ -2664,7 +2685,7 @@ class ServerVBox(gtk.VBox):
         """
         if Return key has been pressed in password entry field interprete this as OK button being pressed
         """
-        if gtk.gdk.keyval_name(event.keyval) in ["Return", "KP_Enter"]:
+        if Gdk.keyval_name(event.keyval) in ["Return", "KP_Enter"]:
             self.AuthOK(widget, server)
 
 
@@ -2678,26 +2699,26 @@ class AppIndicator(object):
         self.Indicator = appindicator.Indicator("Nagstamon", self.output.Resources + os.sep + "nagstamon" + self.output.BitmapSuffix,\
                                                  appindicator.CATEGORY_APPLICATION_STATUS)
         # define all items on AppIndicator menu, which might be switched on and off depending of their relevance
-        self.Menu = gtk.Menu()
+        self.Menu = Gtk.Menu()
         # Nagstamon Submenu
-        self.Menu_Nagstamon = gtk.MenuItem("Nagstamon")
+        self.Menu_Nagstamon = Gtk.MenuItem("Nagstamon")
         self.Menu_Nagstamon.set_submenu(self.output.statusbar.Menu)
-        self.Menu_Separator = gtk.SeparatorMenuItem()
+        self.Menu_Separator = Gtk.SeparatorMenuItem()
         # Status menu items
-        self.Menu_DOWN = gtk.MenuItem("")
+        self.Menu_DOWN = Gtk.MenuItem("")
         self.Menu_DOWN.connect("activate", self.output.popwin.PopUp)
-        self.Menu_UNREACHABLE = gtk.MenuItem("")
+        self.Menu_UNREACHABLE = Gtk.MenuItem("")
         self.Menu_UNREACHABLE.connect("activate", self.output.popwin.PopUp)
-        self.Menu_CRITICAL = gtk.MenuItem("")
+        self.Menu_CRITICAL = Gtk.MenuItem("")
         self.Menu_CRITICAL.connect("activate", self.output.popwin.PopUp)
-        self.Menu_UNKNOWN = gtk.MenuItem("")
+        self.Menu_UNKNOWN = Gtk.MenuItem("")
         self.Menu_UNKNOWN.connect("activate", self.output.popwin.PopUp)
-        self.Menu_WARNING = gtk.MenuItem("")
+        self.Menu_WARNING = Gtk.MenuItem("")
         self.Menu_WARNING.connect("activate", self.output.popwin.PopUp)
         # show detail popup, same effect as clicking one f the above
-        self.Menu_ShowDetails = gtk.MenuItem("Show details...")
+        self.Menu_ShowDetails = Gtk.MenuItem("Show details...")
         self.Menu_ShowDetails.connect("activate", self.output.popwin.PopUp)
-        self.Menu_OK = gtk.MenuItem("OK")
+        self.Menu_OK = Gtk.MenuItem("OK")
         self.Menu_OK.connect("activate", self.OK)
 
         self.Menu.append(self.Menu_Nagstamon)
@@ -2763,7 +2784,7 @@ class Settings(object):
 
         # set the gtkbuilder files
         self.builderfile = self.output.Resources + os.sep + "settings_dialog.ui"
-        self.builder = gtk.Builder()
+        self.builder = Gtk.Builder()
         self.builder.add_from_file(self.builderfile)
         self.dialog = self.builder.get_object("settings_dialog")
 
@@ -2810,7 +2831,7 @@ class Settings(object):
                 # some hazard, every widget has other methods to fill it with desired content
                 # so we try them all, one of them should work
 
-                # help gtk.filechooser on windows
+                # help Gtk.filechooser on windows
                 if str(self.conf.__dict__[key]) == "None":
                     self.conf.__dict__[key] = None
                 try:
@@ -2874,14 +2895,14 @@ class Settings(object):
         # set filters fore sound filechoosers
         filters = dict()
         # WAV files work on every platform
-        filters["wav"] = gtk.FileFilter()
+        filters["wav"] = Gtk.FileFilter()
         filters["wav"].set_name("WAV files")
         filters["wav"].add_pattern("*.wav")
         filters["wav"].add_pattern("*.WAV")
 
         # OGG files are only usable on unixoid OSes:
         if not platform.system() == "Windows":
-            filters["ogg"] = gtk.FileFilter()
+            filters["ogg"] = Gtk.FileFilter()
             filters["ogg"].set_name("OGG files")
             filters["ogg"].add_pattern("*.ogg")
             filters["ogg"].add_pattern("*.OGG")
@@ -2896,8 +2917,8 @@ class Settings(object):
         # offering sort order for status popup
         # default sort column field
         self.combo_default_sort_field = self.builder.get_object("input_combo_default_sort_field")
-        combomodel_default_sort_field = gtk.ListStore(gobject.TYPE_STRING)
-        crsf = gtk.CellRendererText()
+        combomodel_default_sort_field = Gtk.ListStore(GObject.TYPE_STRING)
+        crsf = Gtk.CellRendererText()
         self.combo_default_sort_field.pack_start(crsf, True)
         self.combo_default_sort_field.set_attributes(crsf, text=0)
         for i in range(6):
@@ -2907,8 +2928,8 @@ class Settings(object):
 
         # default column sort order combobox
         self.combo_default_sort_order = self.builder.get_object("input_combo_default_sort_order")
-        combomodel_default_sort_order = gtk.ListStore(gobject.TYPE_STRING)
-        crso = gtk.CellRendererText()
+        combomodel_default_sort_order = Gtk.ListStore(GObject.TYPE_STRING)
+        crso = Gtk.CellRendererText()
         self.combo_default_sort_order.pack_start(crso, True)
         self.combo_default_sort_order.set_attributes(crso, text=0)
         combomodel_default_sort_order.append(("Ascending" ,))
@@ -2918,8 +2939,8 @@ class Settings(object):
 
         # fill fullscreen display combobox
         self.combo_fullscreen_display = self.builder.get_object("input_combo_fullscreen_display")
-        combomodel_fullscreen_display = gtk.ListStore(gobject.TYPE_STRING)
-        crfsd = gtk.CellRendererText()
+        combomodel_fullscreen_display = Gtk.ListStore(GObject.TYPE_STRING)
+        crfsd = Gtk.CellRendererText()
         self.combo_fullscreen_display.pack_start(crfsd, True)
         self.combo_fullscreen_display.set_attributes(crfsd, text=0)
         for i in self.output.monitors:
@@ -2956,10 +2977,10 @@ class Settings(object):
             self.builder.get_object("input_radiobutton_appindicator").hide()
 
         # libnotify-based desktop notification probably only available on Linux
-        if not sys.modules.has_key("pynotify"):
+        if not sys.modules.has_key("Notify"):
             self.builder.get_object("input_checkbutton_notification_desktop").hide()
         # appindicator option is not needed on non-Ubuntuesque systems
-        if not sys.modules.has_key("appindicator"):
+        if not sys.modules.has_key("AppIndicator"):
             self.builder.get_object("input_radiobutton_appindicator").hide()
 
         # this should not be necessary, but for some reason the number of hours is 10 in unitialized state... :-(
@@ -2976,10 +2997,10 @@ class Settings(object):
 
 
     def show(self):
-        # show filled settings dialog and wait thanks to gtk.run()
+        # show filled settings dialog and wait thanks to Gtk.run()
         self.dialog.run()
         # delete global open Windows entry
-        gobject.idle_add(self.output.DeleteGUILock, str(self.__class__.__name__))
+        GObject.idle_add(self.output.DeleteGUILock, str(self.__class__.__name__))
         self.dialog.hide()
 
 
@@ -3023,7 +3044,7 @@ class Settings(object):
         """
 
         # create a model for treeview where the table headers all are strings
-        liststore = gtk.ListStore(gobject.TYPE_STRING, gobject.TYPE_STRING, gobject.TYPE_BOOLEAN)
+        liststore = Gtk.ListStore(GObject.TYPE_STRING, GObject.TYPE_STRING, GObject.TYPE_BOOLEAN)
 
         # to sort the monitor servers alphabetically make a sortable list of their names
         item_list = list(items)
@@ -3042,8 +3063,8 @@ class Settings(object):
         self.builder.get_object(treeview_widget).set_model(liststore)
 
         # render aka create table view
-        renderer_text = gtk.CellRendererText()
-        tab_column = gtk.TreeViewColumn(column_string, renderer_text, text=0, foreground=1, strikethrough=2)
+        renderer_text = Gtk.CellRendererText()
+        tab_column = Gtk.TreeViewColumn(column_string, renderer_text, text=0, foreground=1, strikethrough=2)
         # somehow idiotic, but less effort... try to delete which column ever, to create a new one
         # this will throw an exception at the first time the options dialog is opened because no column exists
         try:
@@ -3139,14 +3160,14 @@ class Settings(object):
             self.firstrun = False
             self.conf.unconfigured = False
 
-            gobject.idle_add(self.output.DeleteGUILock, str(self.__class__.__name__))
+            GObject.idle_add(self.output.DeleteGUILock, str(self.__class__.__name__))
             self.dialog.hide()
 
             if str(self.conf.statusbar_floating) == "True":
                 self.output.statusbar.StatusBar.show_all()
                 self.output.statusbar.CalculateFontSize()
             else:
-                self.output.statusbar.StatusBar.hide_all()
+                self.output.statusbar.StatusBar.hide()
 
             if str(self.conf.icon_in_systray) == "True":
                 self.output.statusbar.SysTray.set_visible(True)
@@ -3160,7 +3181,7 @@ class Settings(object):
                 else:
                     self.output.appindicator.Indicator.set_status(appindicator.STATUS_PASSIVE)
 
-            # in Windows the statusbar with gtk.gdk.WINDOW_TYPE_HINT_UTILITY places itself somewhere
+            # in Windows the statusbar with Gdk.WindowTypeHint.UTILITY places itself somewhere
             # this way it should be disciplined
             self.output.statusbar.StatusBar.move(int(self.conf.position_x), int(self.conf.position_y))
 
@@ -3184,12 +3205,12 @@ class Settings(object):
                         # add server sorting
                         self.output.last_sorting[server.get_name()] = Sorting([(self.output.startup_sort_field,\
                                                                       self.output.startup_sort_order ),\
-                                                                      (server.HOST_COLUMN_ID, gtk.SORT_ASCENDING)],\
+                                                                      (server.HOST_COLUMN_ID, Gtk.SortType.ASCENDING)],\
                                                                       len(server.COLUMNS)+1)
             # delete not-current-anymore servers (disabled or renamed)
             for server in self.output.popwin.ServerVBoxes.keys():
                 if not server in self.output.servers:
-                    self.output.popwin.ServerVBoxes[server].hide_all()
+                    self.output.popwin.ServerVBoxes[server].hide()
                     self.output.popwin.ServerVBoxes[server].destroy()
                     self.output.popwin.ServerVBoxes.pop(server)
 
@@ -3248,7 +3269,7 @@ class Settings(object):
         if self.output.firstrun == True:
             sys.exit()
         else:
-            gobject.idle_add(self.output.DeleteGUILock, str(self.__class__.__name__))
+            GObject.idle_add(self.output.DeleteGUILock, str(self.__class__.__name__))
             self.dialog.hide()
 
 
@@ -3270,8 +3291,8 @@ class Settings(object):
         """
         # text and background colors of all states get set to defaults
         for state in ["ok", "warning", "critical", "unknown", "unreachable", "down", "error"]:
-            self.builder.get_object("input_colorbutton_" + state + "_text").set_color(gtk.gdk.color_parse(self.conf.__dict__["default_color_" + state + "_text"]))
-            self.builder.get_object("input_colorbutton_" + state + "_background").set_color(gtk.gdk.color_parse(self.conf.__dict__["default_color_" + state + "_background"]))
+            self.builder.get_object("input_colorbutton_" + state + "_text").set_color(Gdk.color_parse(self.conf.__dict__["default_color_" + state + "_text"]))
+            self.builder.get_object("input_colorbutton_" + state + "_background").set_color(Gdk.color_parse(self.conf.__dict__["default_color_" + state + "_background"]))
 
         # renew preview
         self.ColorsPreview()
@@ -3283,8 +3304,8 @@ class Settings(object):
         """
         # text and background colors of all states get set to defaults
         for state in ["ok", "warning", "critical", "unknown", "unreachable", "down", "error"]:
-            self.builder.get_object("input_colorbutton_" + state + "_text").set_color(gtk.gdk.color_parse(self.conf.__dict__["color_" + state + "_text"]))
-            self.builder.get_object("input_colorbutton_" + state + "_background").set_color(gtk.gdk.color_parse(self.conf.__dict__["color_" + state + "_background"]))
+            self.builder.get_object("input_colorbutton_" + state + "_text").set_color(Gdk.color_parse(self.conf.__dict__["color_" + state + "_text"]))
+            self.builder.get_object("input_colorbutton_" + state + "_background").set_color(Gdk.color_parse(self.conf.__dict__["color_" + state + "_background"]))
 
         # renew preview
         self.ColorsPreview()
@@ -3295,10 +3316,10 @@ class Settings(object):
             delete Server after prompting
         """
         if server:
-            dialog = gtk.MessageDialog(parent=self.dialog, flags=gtk.DIALOG_MODAL, type=gtk.MESSAGE_QUESTION, buttons=gtk.BUTTONS_OK + gtk.BUTTONS_CANCEL, message_format='Really delete server "' + server + '"?')
-            # gtk.Dialog.run() does a mini loop to wait
+            dialog = Gtk.MessageDialog(parent=self.dialog, flags=Gtk.DIALOG_MODAL, type=Gtk.MessageType.QUESTION, buttons=Gtk.ButtonsType.OK + Gtk.ButtonsType.CANCEL, message_format='Really delete server "' + server + '"?')
+            # Gtk.Dialog.run() does a mini loop to wait
             # for some reason response is YES, not OK... but it works.
-            if dialog.run() == gtk.RESPONSE_YES:
+            if dialog.run() == Gtk.RESPONSE_YES:
                 # delete server configuration entry
                 self.conf.servers.pop(server)
                 # stop thread
@@ -3323,10 +3344,10 @@ class Settings(object):
             delete action after prompting
         """
         if action:
-            dialog = gtk.MessageDialog(parent=self.dialog, flags=gtk.DIALOG_MODAL, type=gtk.MESSAGE_QUESTION, buttons=gtk.BUTTONS_OK + gtk.BUTTONS_CANCEL, message_format='Really delete action "' + action + '"?')
-            # gtk.Dialog.run() does a mini loop to wait
+            dialog = Gtk.MessageDialog(parent=self.dialog, flags=Gtk.DIALOG_MODAL, type=Gtk.MessageType.QUESTION, buttons=Gtk.ButtonsType.OK + Gtk.ButtonsType.CANCEL, message_format='Really delete action "' + action + '"?')
+            # Gtk.Dialog.run() does a mini loop to wait
             # for some reason response is YES, not OK... but it works.
-            if dialog.run() == gtk.RESPONSE_YES:
+            if dialog.run() == Gtk.RESPONSE_YES:
                 # delete actions configuration entry
                 self.conf.actions.pop(action)
                 # fill settings dialog treeview
@@ -3362,7 +3383,7 @@ class Settings(object):
         debug_to_file.set_sensitive(debug_mode.get_active())
         debug_file.set_sensitive(debug_to_file.get_active())
 
-        if debug_to_file.state == gtk.STATE_INSENSITIVE:
+        if debug_to_file.state == Gtk.STATE_INSENSITIVE:
             debug_file.set_sensitive(False)
 
 
@@ -3470,7 +3491,7 @@ class Settings(object):
             play sample of selected sound for Nagios Event
         """
         try:
-            filechooser = self.builder.get_object("input_filechooser_notification_custom_sound_" + gtk.Buildable.get_name(playbutton))
+            filechooser = self.builder.get_object("input_filechooser_notification_custom_sound_" + Gtk.Buildable.get_name(playbutton))
             sound = Actions.PlaySound(sound="FILE", file=filechooser.get_filename(), conf=self.conf, servers=self.servers)
             sound.start()
         except Exception, err:
@@ -3488,7 +3509,7 @@ class GenericServer(object):
 
         # set the gtkbuilder files
         self.builderfile = self.output.Resources + os.sep + "settings_server_dialog.ui"
-        self.builder = gtk.Builder()
+        self.builder = Gtk.Builder()
         self.builder.add_from_file(self.builderfile)
         self.dialog = self.builder.get_object("settings_server_dialog")
 
@@ -3504,8 +3525,8 @@ class GenericServer(object):
 
         # set server type combobox to Nagios as default
         self.combobox = self.builder.get_object("input_combo_server_type")
-        combomodel = gtk.ListStore(gobject.TYPE_STRING)
-        cr = gtk.CellRendererText()
+        combomodel = Gtk.ListStore(GObject.TYPE_STRING)
+        cr = Gtk.CellRendererText()
         self.combobox.pack_start(cr, True)
         self.combobox.set_attributes(cr, text=0)
         for server in Actions.get_registered_server_type_list():
@@ -3522,9 +3543,9 @@ class GenericServer(object):
 
 
     def show(self):
-        # show filled settings dialog and wait thanks to gtk.run()
+        # show filled settings dialog and wait thanks to Gtk.run()
         self.dialog.run()
-        gobject.idle_add(self.output.DeleteGUILock, str(self.__class__.__name__))
+        GObject.idle_add(self.output.DeleteGUILock, str(self.__class__.__name__))
         self.dialog.hide()
 
 
@@ -3655,7 +3676,7 @@ class GenericServer(object):
             self.output.Dialogs["Settings"].ToggleRECriticalityFilter()
 
             # destroy new server dialog
-            gobject.idle_add(self.output.DeleteGUILock, str(self.__class__.__name__))
+            GObject.idle_add(self.output.DeleteGUILock, str(self.__class__.__name__))
             self.dialog.hide()
 
 
@@ -3664,7 +3685,7 @@ class GenericServer(object):
             settings dialog got cancelled
         """
         if not self.conf.unconfigured == True:
-            gobject.idle_add(self.output.DeleteGUILock, str(self.__class__.__name__))
+            GObject.idle_add(self.output.DeleteGUILock, str(self.__class__.__name__))
             self.dialog.hide()
         else:
             sys.exit()
@@ -3927,7 +3948,7 @@ class EditServer(GenericServer):
             self.output.Dialogs["Settings"].ToggleRECriticalityFilter()
 
             # hide dialog
-            gobject.idle_add(self.output.DeleteGUILock, str(self.__class__.__name__))
+            GObject.idle_add(self.output.DeleteGUILock, str(self.__class__.__name__))
             self.dialog.hide()
 
 
@@ -3935,7 +3956,7 @@ class EditServer(GenericServer):
         """
             settings dialog got cancelled
         """
-        gobject.idle_add(self.output.DeleteGUILock, str(self.__class__.__name__))
+        GObject.idle_add(self.output.DeleteGUILock, str(self.__class__.__name__))
         self.dialog.hide()
 
 
@@ -3949,7 +3970,7 @@ class GenericAction(object):
 
         # set the gtkbuilder files
         self.builderfile = self.output.Resources + os.sep + "settings_action_dialog.ui"
-        self.builder = gtk.Builder()
+        self.builder = Gtk.Builder()
         self.builder.add_from_file(self.builderfile)
         self.dialog = self.builder.get_object("settings_action_dialog")
 
@@ -3968,8 +3989,8 @@ class GenericAction(object):
 
         # fill combobox with options
         combobox = self.builder.get_object("input_combo_action_type")
-        combomodel = gtk.ListStore(gobject.TYPE_STRING)
-        cr = gtk.CellRendererText()
+        combomodel = Gtk.ListStore(GObject.TYPE_STRING)
+        cr = Gtk.CellRendererText()
         combobox.pack_start(cr, True)
         combobox.set_attributes(cr, text=0)
         for action_type in ["Browser", "Command", "URL"]:
@@ -3980,9 +4001,9 @@ class GenericAction(object):
 
 
     def show(self):
-        # show filled settings dialog and wait thanks to gtk.run()
+        # show filled settings dialog and wait thanks to Gtk.run()
         self.dialog.run()
-        gobject.idle_add(self.output.DeleteGUILock, str(self.__class__.__name__))
+        GObject.idle_add(self.output.DeleteGUILock, str(self.__class__.__name__))
         self.dialog.hide()
 
 
@@ -4075,7 +4096,7 @@ class GenericAction(object):
             # fill settings dialog treeview
             self.settingsdialog.FillTreeView("actions_treeview", self.conf.actions, "Actions", "selected_action")
             # destroy new action dialog
-            gobject.idle_add(self.output.DeleteGUILock, str(self.__class__.__name__))
+            GObject.idle_add(self.output.DeleteGUILock, str(self.__class__.__name__))
             self.dialog.hide()
 
 
@@ -4083,7 +4104,7 @@ class GenericAction(object):
         """
             settings dialog got cancelled
         """
-        gobject.idle_add(self.output.DeleteGUILock, str(self.__class__.__name__))
+        GObject.idle_add(self.output.DeleteGUILock, str(self.__class__.__name__))
         self.dialog.hide()
 
 
@@ -4218,7 +4239,7 @@ class EditAction(GenericAction):
             # fill settings dialog treeview
             self.settingsdialog.FillTreeView("actions_treeview", self.conf.actions, "Actions", "selected_action")
             # destroy new action dialog
-            gobject.idle_add(self.output.DeleteGUILock, str(self.__class__.__name__))
+            GObject.idle_add(self.output.DeleteGUILock, str(self.__class__.__name__))
             self.dialog.hide()
 
 
@@ -4226,7 +4247,7 @@ class EditAction(GenericAction):
         """
             settings dialog got cancelled
         """
-        gobject.idle_add(self.output.DeleteGUILock, str(self.__class__.__name__))
+        GObject.idle_add(self.output.DeleteGUILock, str(self.__class__.__name__))
         self.dialog.hide()
 
 
@@ -4243,7 +4264,7 @@ class AuthenticationDialog:
 
         # set the gtkbuilder files
         self.builderfile = self.Resources + os.sep + "authentication_dialog.ui"
-        self.builder = gtk.Builder()
+        self.builder = Gtk.Builder()
         self.builder.add_from_file(self.builderfile)
         self.dialog = self.builder.get_object("authentication_dialog")
 
@@ -4367,7 +4388,7 @@ class DummyStatusIcon(object):
         pass
 
 
-class ButtonWithIcon(gtk.Button):
+class ButtonWithIcon(Gtk.Button):
     """
     Button with an icon - reduces code
     """
@@ -4375,26 +4396,26 @@ class ButtonWithIcon(gtk.Button):
         # add all keywords to object
         for k in kwds: self.__dict__[k] = kwds[k]
 
-        gtk.Button.__init__(self)
+        Gtk.Button.__init__(self)
 
-        # HBox is necessary because gtk.Button allows only one child
-        self.HBox = gtk.HBox()
-        self.Icon = gtk.Image()
+        # HBox is necessary because Gtk.Button allows only one child
+        self.HBox = Gtk.HBox()
+        self.Icon = Gtk.Image()
         self.Icon.set_from_file(self.output.Resources + os.sep + self.icon)
         self.HBox.add(self.Icon)
 
         if self.label != "":
-            self.Label = gtk.Label(" " + self.label)
+            self.Label = Gtk.Label(" " + self.label)
             self.HBox.add(self.Label)
 
-        self.set_relief(gtk.RELIEF_NONE)
+        self.set_relief(Gtk.ReliefStyle.NONE)
         self.add(self.HBox)
 
     def show(self):
         """
         'normal' .show() does not show HBox and Icon
         """
-        gtk.Button.show(self)
+        Gtk.Button.show(self)
         self.HBox.show()
         self.Icon.show()
         if self.__dict__.has_key("Label"):
@@ -4405,7 +4426,7 @@ class ButtonWithIcon(gtk.Button):
         """
         'normal' .hide() does not hide HBox and Icon
         """
-        gtk.Button.hide(self)
+        Gtk.Button.hide(self)
         self.HBox.hide()
         self.Icon.hide()
         if self.__dict__.has_key("Label"):
