@@ -28,8 +28,7 @@ import datetime
 import time
 import traceback
 import base64
-import re
-import gobject
+from gi.repository import GObject
 
 # to let Linux distributions use their own BeautifulSoup if existent try importing local BeautifulSoup first
 # see https://sourceforge.net/tracker/?func=detail&atid=1101370&aid=3302612&group_id=236865
@@ -758,7 +757,7 @@ class GenericServer(object):
                     # needed to get valid credentials
                     self.refresh_authentication = True
                     while status.error != "":
-                        gobject.idle_add(output.RefreshDisplayStatus)
+                        GObject.idle_add(output.RefreshDisplayStatus)
 
                         # clean existent authentication
                         self.reset_HTTP()
