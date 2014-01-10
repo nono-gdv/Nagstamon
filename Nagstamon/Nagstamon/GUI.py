@@ -1455,11 +1455,13 @@ class StatusBar(object):
                 if event == 3:
                     # 'time' is important (wherever it comes from) for Linux/Gtk to let
                     # the popup be shown even after releasing the mouse button
-                    self.Menu.popup(None, None, None, event, time)
+                    self.Menu.popup(None, None, None, None, event, time)
             else:
                 # right button
                 if event.button == 3:
-                    self.Menu.popup(None, None, None, event.button, event.time)
+                    self.Menu.popup(None, None, None, None, event.button, event.time)
+
+            for i in dir(self.Menu): print i
 
             # silly Windows(TM) workaround to keep menu above taskbar
             if not platform.system() == "Darwin":
