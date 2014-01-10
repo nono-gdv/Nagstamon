@@ -27,6 +27,8 @@ import socket
 
 from gi.repository import Gtk
 from gi.repository import GObject
+from gi.repository import Gdk
+from gi.repository import GLib
 
 # Initiate Config
 # if modules are not available from central python install try the ones in the same directory
@@ -84,6 +86,7 @@ from Nagstamon import Actions
 
 # necessary gobject thread initialization
 GObject.threads_init()
+Gdk.threads_init()
 
 # dictinary for servers
 servers = dict()

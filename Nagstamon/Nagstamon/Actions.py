@@ -27,6 +27,10 @@ import re
 import sys
 import traceback
 from gi.repository import GObject
+from gi.repository import GLib
+
+GObject.threads_init()
+GLib.threads_init()
 
 # if running on windows import winsound
 import platform
@@ -109,7 +113,7 @@ class RefreshLoopOneServer(threading.Thread):
                 if self.server.isChecking == False:
                     # set server status for status field in popwin
                     self.server.status = "Refreshing"
-                    GObject.idle_add(self.output.popwin.UpdateStatus, self.server)
+                    GLib.idle_add(self.output.popwin.UpdateStatus, self.server)
                     # get current status
                     server_status = self.server.GetStatus(output=self.output)
                     # GTK/Pango does not like tag brackets < and >, so clean them out from description
@@ -122,20 +126,20 @@ class RefreshLoopOneServer(threading.Thread):
                         self.server.status = "ERROR"
                         # give server status description for future usage
                         self.server.status_description = str(server_status.error)
-                        GObject.idle_add(self.output.popwin.UpdateStatus, self.server)
+                        GLib.idle_add(self.output.popwin.UpdateStatus, self.server)
                         # tell gobject to care about GUI stuff - refresh display status
                         # use a flag to prevent all threads at once to write to statusbar label in case
                         # of lost network connectivity - this leads to a mysterious pango crash
                         if self.output.statusbar.isShowingError == False:
-                            GObject.idle_add(self.output.RefreshDisplayStatus)
+                            GLib.idle_add(self.output.RefreshDisplayStatus)
                             if str(self.conf.fullscreen) == "True":
-                                GObject.idle_add(self.output.popwin.RefreshFullscreen)
+                                GLib.idle_add(self.output.popwin.RefreshFullscreen)
                             # wait a moment
                             time.sleep(5)
                             # change statusbar to the following error message
                             # show error message in statusbar
                             # shorter error message - see https://sourceforge.net/tracker/?func=detail&aid=3017044&group_id=236865&atid=1101373
-                            GObject.idle_add(self.output.statusbar.ShowErrorMessage, {"True":"ERROR", "False":"ERR"}[str(self.conf.long_display)])
+                            GLib.idle_add(self.output.statusbar.ShowErrorMessage, {"True":"ERROR", "False":"ERR"}[str(self.conf.long_display)])
                             # wait some seconds
                             time.sleep(5)
                             # set statusbar error message status back
@@ -146,9 +150,9 @@ class RefreshLoopOneServer(threading.Thread):
                         # set server status for status field in popwin
                         self.server.status = "Connected"
                         # tell gobject to care about GUI stuff - refresh display status
-                        GObject.idle_add(self.output.RefreshDisplayStatus)
+                        GLib.idle_add(self.output.RefreshDisplayStatus)
                         if str(self.conf.fullscreen) == "True":
-                            GObject.idle_add(self.output.popwin.RefreshFullscreen)
+                            GLib.idle_add(self.output.popwin.RefreshFullscreen)
                         # wait for the doRefresh flag to be True, if it is, do a refresh
                         if self.doRefresh == True:
                             if str(self.conf.debug_mode) == "True":
@@ -166,7 +170,7 @@ class RefreshLoopOneServer(threading.Thread):
                 self.server.Hook()
                 # refresh fullscreen window - maybe somehow raw approach
                 if str(self.conf.fullscreen) == "True":
-                    GObject.idle_add(self.output.popwin.RefreshFullscreen)
+                    GLib.idle_add(self.output.popwin.RefreshFullscreen)
 
 
 def RefreshAllServers(servers=None, output=None, conf=None):
@@ -184,7 +188,7 @@ def RefreshAllServers(servers=None, output=None, conf=None):
 
             # set server status for status field in popwin
             server.status = "Refreshing"
-            GObject.idle_add(output.popwin.UpdateStatus, server)
+            GLib.idle_add(output.popwin.UpdateStatus, server)
 
 
 class DebugLoop(threading.Thread):
@@ -290,7 +294,7 @@ class RecheckAll(threading.Thread):
                     if str(self.conf.servers[server.get_name()].enabled):
                         # set server status for status field in popwin
                         server.status = "Rechecking all started"
-                        GObject.idle_add(self.output.popwin.UpdateStatus, server)
+                        GLib.idle_add(self.output.popwin.UpdateStatus, server)
 
                         for host in server.hosts.values():
                             # construct an unique key which refers to rechecking thread in dictionary
@@ -443,8 +447,8 @@ class CheckForNewVersion(threading.Thread):
                     for s in self.servers.values(): s.CheckingForNewVersion = False
                     # do not tell user that the version is latest when starting up nagstamon
                     if not (self.mode == "startup" and version_status == "latest"):
-                        # GObject.idle_add is necessary to start gtk stuff from thread
-                        GObject.idle_add(self.output.CheckForNewVersionDialog, version_status, version)
+                        # GLib.idle_add is necessary to start gtk stuff from thread
+                        GLib.idle_add(self.output.CheckForNewVersionDialog, version_status, version)
                     break
                 # reset the servers CheckingForNewVersion flag to allow a later check
                 s.CheckingForNewVersion = False
@@ -515,11 +519,11 @@ class Notification(threading.Thread):
             if self.output.statusbar.Flashing == True:
                 if self.output.statusbar.isShowingError == False:
                     # check again because in the mean time this flag could have been changed by NotificationOff()
-                    GObject.idle_add(self.output.statusbar.Flash)
+                    GLib.idle_add(self.output.statusbar.Flash)
             # Ubuntu AppIndicator simulates flashing by brute force
             if str(self.conf.appindicator) == "True":
                 if self.output.appindicator.Flashing == True:
-                    GObject.idle_add(self.output.appindicator.Flash)
+                    GLib.idle_add(self.output.appindicator.Flash)
             # if wanted play notification sound, if it should be repeated every minute (2*interval/0.5=interval) do so.
             if str(self.conf.notification_sound) == "True":
                 if soundcount == 0:
@@ -549,15 +553,15 @@ class MoveStatusbar(threading.Thread):
     def run(self):
         # avoid flickering popwin while moving statusbar around
         # gets re-enabled from popwin.setShowable()
-        if self.output.GUILock.has_key("Popwin"): self.output.popwin.Close()
+        if self.output.GUILock.has_key("Popwin"): GLib.idle_add(self.output.popwin.Close)
         self.output.popwin.showPopwin = False
         # lock GUI while moving statusbar so no auth dialogs could pop up
-        self.output.AddGUILock(self.__class__.__name__)
+        GLib.idle_add(self.output.AddGUILock, self.__class__.__name__)
         # in case of moving statusbar do some moves
         while self.output.statusbar.Moving == True:
-            GObject.idle_add(self.output.statusbar.Move)
-            time.sleep(0.01)
-        self.output.DeleteGUILock(self.__class__.__name__)
+            GLib.idle_add(self.output.statusbar.Move)
+            time.sleep(0.05)
+        GLib.idle_add(self.output.DeleteGUILock, self.__class__.__name__)
 
 
 class Action(threading.Thread):

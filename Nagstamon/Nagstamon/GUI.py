@@ -17,15 +17,11 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
 
-#from gi import pygtkcompat
-#pygtkcompat.enable()
-#pygtkcompat.enable_gtk(version="3.0")
-#import gtk
-
 from gi.repository import Gtk
 from gi.repository import Gdk
 from gi.repository import GdkPixbuf
 from gi.repository import GObject
+from gi.repository import GLib
 import os
 import platform
 
@@ -53,6 +49,9 @@ from Nagstamon import Custom # used for initialization of custom components
 import sys
 import copy
 
+# necessary thread initialization
+GLib.threads_init()
+Gdk.threads_init()
 
 class Sorting(object):
     """
@@ -1078,12 +1077,12 @@ class GUI(object):
             license = "Nagstamon is licensed under GPL 2.0.\nYou should have got a LICENSE file distributed with nagstamon.\nGet it at http://www.gnu.org/licenses/gpl-2.0.txt."
         about.set_license(license)
 
-        # use GObject.idle_add() to be thread safe
-        GObject.idle_add(self.AddGUILock, str(self.__class__.__name__))
+        # use GLib.idle_add() to be thread safe
+        GLib.idle_add(self.AddGUILock, str(self.__class__.__name__))
         self.popwin.PopDown()
         about.run()
-        # use GObject.idle_add() to be thread safe
-        GObject.idle_add(self.DeleteGUILock, str(self.__class__.__name__))
+        # use GLib.idle_add() to be thread safe
+        GLib.idle_add(self.DeleteGUILock, str(self.__class__.__name__))
         about.destroy()
 
 
@@ -1222,22 +1221,24 @@ class GUI(object):
     def AddGUILock(self, widget_name, widget=None):
         """
             add calling window to dictionary of open windows to keep the windows separated
-            to be called via GObject.idle_add
+            to be called via GLib.idle_add
         """
         self.GUILock[widget_name] = widget
+        return False
 
 
     def DeleteGUILock(self, window_name):
         """
         delete calling window from dictionary of open windows to keep the windows separated
-        to be called via GObject.idle_add
+        to be called via GLib.idle_add
         """
         try:
             self.GUILock.pop(window_name)
         except:
-            #import traceback
-            #traceback.print_exc(file=sys.stdout)
+            import traceback
+            traceback.print_exc(file=sys.stdout)
             pass
+        return False
 
 
     def _FocusJump(self, widget=None, event=None, builder=None, next_widget=None):
@@ -1265,34 +1266,34 @@ class GUI(object):
 
         if not self.dialog in self.Dialogs:
             if self.dialog == "Settings":
-                GObject.idle_add(self.output.AddGUILock, "Settings")
+                GLib.idle_add(self.output.AddGUILock, "Settings")
                 self.Dialogs["Settings"] = Settings(servers=self.servers, output=self.output, conf=self.conf, first_page=self.first_page)
                 self.Dialogs["Settings"].show()
 
             elif self.dialog == "NewServer":
-                GObject.idle_add(self.output.AddGUILock, "NewServer")
+                GLib.idle_add(self.output.AddGUILock, "NewServer")
                 self.Dialogs["NewServer"] = NewServer(servers=self.servers, output=self.output, settingsdialog=self.settingsdialog, conf=self.conf)
                 self.Dialogs["NewServer"].show()
 
             elif self.dialog == "EditServer":
-                GObject.idle_add(self.output.AddGUILock, "EditServer")
+                GLib.idle_add(self.output.AddGUILock, "EditServer")
                 self.Dialogs["EditServer"] = EditServer(servers=self.servers, output=self.output, settingsdialog=self.settingsdialog, conf=self.conf, server=self.selected_server)
                 self.Dialogs["EditServer"].show()
 
             elif self.dialog == "NewAction":
-                GObject.idle_add(self.output.AddGUILock, "NewAction")
+                GLib.idle_add(self.output.AddGUILock, "NewAction")
                 self.Dialogs["NewAction"] = NewAction(output=self.output, settingsdialog=self.settingsdialog, conf=self.conf)
                 self.Dialogs["NewAction"].show()
 
             elif self.dialog == "EditAction":
-                GObject.idle_add(self.output.AddGUILock, "EditAction")
+                GLib.idle_add(self.output.AddGUILock, "EditAction")
                 self.Dialogs["EditAction"] = EditAction(output=self.output, settingsdialog=self.settingsdialog, conf=self.conf, action=self.selected_action)
                 self.Dialogs["EditAction"].show()
         else:
             # when being reused some dialogs need some extra values
             if self.dialog in ["Settings", "NewServer", "EditServer", "NewAction", "EditAction"]:
                 self.output.popwin.Close()
-                GObject.idle_add(self.output.AddGUILock, self.dialog)
+                GLib.idle_add(self.output.AddGUILock, self.dialog)
                 if self.dialog == "Settings":
                     self.Dialogs["Settings"].first_page = self.first_page
                 if self.dialog == "EditServer":
@@ -1390,6 +1391,9 @@ class StatusBar(object):
 
         self.Menu.show_all()
 
+        # storage for event.device for .get_device_position()
+        self.Device = None
+
 
     def CalculateFontSize(self):
         """
@@ -1461,11 +1465,10 @@ class StatusBar(object):
                 if event.button == 3:
                     self.Menu.popup(None, None, None, None, event.button, event.time)
 
-            for i in dir(self.Menu): print i
-
             # silly Windows(TM) workaround to keep menu above taskbar
-            if not platform.system() == "Darwin":
-                self.Menu.window.set_keep_above(True)
+            # no .window in GTK3
+            ###if not platform.system() == "Darwin":
+            ###    self.Menu.window.set_keep_above(True)
 
 
     def MenuResponseMonitors(self, widget, menu_entry):
@@ -1525,24 +1528,27 @@ class StatusBar(object):
         """
             see what happens if statusbar is clicked
         """
-        # check if settings etc. are not already open - an open popwin will be closed anyway
-        if len(self.output.GUILock) == 0 or self.output.GUILock.has_key("Popwin"):
-            # get position of statusbar
-            self.StatusBar.x = event.x
-            self.StatusBar.y = event.y
-            # if left mousebutton is pressed
-            if event.button == 1:
-                self.output.popwin.Close()
+        if event != None:
+            if event.device != None:
+                self.Device = event.device
+            # check if settings etc. are not already open - an open popwin will be closed anyway
+            if len(self.output.GUILock) == 0 or self.output.GUILock.has_key("Popwin"):
+                # get position of statusbar
+                self.StatusBar.x = event.x
+                self.StatusBar.y = event.y
+                # if left mousebutton is pressed
+                if event.button == 1:
+                    self.output.popwin.Close()
+                    self.Moving = True
+                    # event necessary for getting x y coordinates since GTK3
+                    move = Actions.MoveStatusbar(output=self.output)
+                    move.start()
 
-                self.Moving = True
-                move = Actions.MoveStatusbar(output=self.output)
-                move.start()
-
-            # if right mousebutton is pressed show statusbar menu
-            if event.button == 3:
-                self.output.popwin.Close()
-                self.Moving = False
-                self.MenuPopup(widget=self.Menu, event=event)
+                # if right mousebutton is pressed show statusbar menu
+                if event.button == 3:
+                    self.output.popwin.Close()
+                    self.Moving = False
+                    self.MenuPopup(widget=self.Menu, event=event)
 
 
     def LogoReleased(self, widget=None, event=None):
@@ -1552,7 +1558,7 @@ class StatusBar(object):
         self.output.popwin.setShowable()
         self.Moving = False
         # to avoid wrong placed popwin in macosx
-        GObject.idle_add(self.output.RefreshDisplayStatus)
+        GLib.idle_add(self.output.RefreshDisplayStatus)
 
 
     def SysTrayClicked(self, widget=None, event=None):
@@ -1590,17 +1596,18 @@ class StatusBar(object):
             self.output.popwin.PopUp()
 
 
-    def Move(self, widget=None, event=None):
+    def Move(self, widget=None):
         """
             moving statusbar
         """
         # access to rootwindow to get the pointers coordinates
         rootwin = self.StatusBar.get_screen().get_root_window()
         # get position of the pointer
-        mousex, mousey, foo = rootwin.get_pointer()
+        foo, mousex, mousey, bar = rootwin.get_device_position(self.Device)
         self.conf.position_x = int(mousex - self.StatusBar.x)
         self.conf.position_y = int(mousey - self.StatusBar.y)
         self.StatusBar.move(self.conf.position_x, self.conf.position_y)
+        return False
 
 
     def ShowErrorMessage(self, message):
@@ -1978,8 +1985,8 @@ class Popwin(object):
                 # switch off Notification
                 self.output.NotificationOff()
                 # register as open window
-                # use GObject.idle_add() to be thread safe
-                GObject.idle_add(self.output.AddGUILock, str(self.__class__.__name__))
+                # use GLib.idle_add() to be thread safe
+                GLib.idle_add(self.output.AddGUILock, str(self.__class__.__name__))
 
                 self.Window.present()
 
@@ -2052,7 +2059,7 @@ class Popwin(object):
             try:
                 if event != None:
                     # access to rootwindow to get the pointers coordinates
-                    rootwin = self.output.statusbar.StatusBar.get_screen().get_root_window()
+                    #rootwin = self.output.statusbar.StatusBar.get_screen().get_root_window()
                     # get position of the pointer
                     #mousex = rootwin.get_pointer().x
                     #mousey = rootwin.get_pointer().y
@@ -2089,13 +2096,14 @@ class Popwin(object):
         if str(self.output.conf.fullscreen) == "False":
             # unregister popwin - seems to be called even if popwin is not open so check before unregistering
             if self.output.GUILock.has_key("Popwin"):
-                # use GObject.idle_add() to be thread safe
-                GObject.idle_add(self.output.DeleteGUILock, self.__class__.__name__)
+                # use GLib.idle_add() to be thread safe
+                GLib.idle_add(self.output.DeleteGUILock, self.__class__.__name__)
             self.Window.hide()
             #self.Window.set_visible(False)
             #self.Window.move(10000,0)
             # notification off because user had a look to hosts/services recently
             self.output.NotificationOff()
+        return False
 
 
     def Resize(self):
@@ -3004,7 +3012,7 @@ class Settings(object):
         # show filled settings dialog and wait thanks to Gtk.run()
         self.dialog.run()
         # delete global open Windows entry
-        GObject.idle_add(self.output.DeleteGUILock, str(self.__class__.__name__))
+        GLib.idle_add(self.output.DeleteGUILock, str(self.__class__.__name__))
         self.dialog.hide()
 
 
@@ -3164,7 +3172,7 @@ class Settings(object):
             self.firstrun = False
             self.conf.unconfigured = False
 
-            GObject.idle_add(self.output.DeleteGUILock, str(self.__class__.__name__))
+            GLib.idle_add(self.output.DeleteGUILock, str(self.__class__.__name__))
             self.dialog.hide()
 
             if str(self.conf.statusbar_floating) == "True":
@@ -3273,7 +3281,7 @@ class Settings(object):
         if self.output.firstrun == True:
             sys.exit()
         else:
-            GObject.idle_add(self.output.DeleteGUILock, str(self.__class__.__name__))
+            GLib.idle_add(self.output.DeleteGUILock, str(self.__class__.__name__))
             self.dialog.hide()
 
 
@@ -3549,7 +3557,7 @@ class GenericServer(object):
     def show(self):
         # show filled settings dialog and wait thanks to Gtk.run()
         self.dialog.run()
-        GObject.idle_add(self.output.DeleteGUILock, str(self.__class__.__name__))
+        GLib.idle_add(self.output.DeleteGUILock, str(self.__class__.__name__))
         self.dialog.hide()
 
 
@@ -3680,7 +3688,7 @@ class GenericServer(object):
             self.output.Dialogs["Settings"].ToggleRECriticalityFilter()
 
             # destroy new server dialog
-            GObject.idle_add(self.output.DeleteGUILock, str(self.__class__.__name__))
+            GLib.idle_add(self.output.DeleteGUILock, str(self.__class__.__name__))
             self.dialog.hide()
 
 
@@ -3689,7 +3697,7 @@ class GenericServer(object):
             settings dialog got cancelled
         """
         if not self.conf.unconfigured == True:
-            GObject.idle_add(self.output.DeleteGUILock, str(self.__class__.__name__))
+            GLib.idle_add(self.output.DeleteGUILock, str(self.__class__.__name__))
             self.dialog.hide()
         else:
             sys.exit()
@@ -3952,7 +3960,7 @@ class EditServer(GenericServer):
             self.output.Dialogs["Settings"].ToggleRECriticalityFilter()
 
             # hide dialog
-            GObject.idle_add(self.output.DeleteGUILock, str(self.__class__.__name__))
+            GLib.idle_add(self.output.DeleteGUILock, str(self.__class__.__name__))
             self.dialog.hide()
 
 
@@ -3960,7 +3968,7 @@ class EditServer(GenericServer):
         """
             settings dialog got cancelled
         """
-        GObject.idle_add(self.output.DeleteGUILock, str(self.__class__.__name__))
+        GLib.idle_add(self.output.DeleteGUILock, str(self.__class__.__name__))
         self.dialog.hide()
 
 
@@ -4007,7 +4015,7 @@ class GenericAction(object):
     def show(self):
         # show filled settings dialog and wait thanks to Gtk.run()
         self.dialog.run()
-        GObject.idle_add(self.output.DeleteGUILock, str(self.__class__.__name__))
+        GLib.idle_add(self.output.DeleteGUILock, str(self.__class__.__name__))
         self.dialog.hide()
 
 
@@ -4100,7 +4108,7 @@ class GenericAction(object):
             # fill settings dialog treeview
             self.settingsdialog.FillTreeView("actions_treeview", self.conf.actions, "Actions", "selected_action")
             # destroy new action dialog
-            GObject.idle_add(self.output.DeleteGUILock, str(self.__class__.__name__))
+            GLib.idle_add(self.output.DeleteGUILock, str(self.__class__.__name__))
             self.dialog.hide()
 
 
@@ -4108,7 +4116,7 @@ class GenericAction(object):
         """
             settings dialog got cancelled
         """
-        GObject.idle_add(self.output.DeleteGUILock, str(self.__class__.__name__))
+        GLib.idle_add(self.output.DeleteGUILock, str(self.__class__.__name__))
         self.dialog.hide()
 
 
@@ -4243,7 +4251,7 @@ class EditAction(GenericAction):
             # fill settings dialog treeview
             self.settingsdialog.FillTreeView("actions_treeview", self.conf.actions, "Actions", "selected_action")
             # destroy new action dialog
-            GObject.idle_add(self.output.DeleteGUILock, str(self.__class__.__name__))
+            GLib.idle_add(self.output.DeleteGUILock, str(self.__class__.__name__))
             self.dialog.hide()
 
 
@@ -4251,7 +4259,7 @@ class EditAction(GenericAction):
         """
             settings dialog got cancelled
         """
-        GObject.idle_add(self.output.DeleteGUILock, str(self.__class__.__name__))
+        GLib.idle_add(self.output.DeleteGUILock, str(self.__class__.__name__))
         self.dialog.hide()
 
 
