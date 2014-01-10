@@ -92,9 +92,9 @@ class GUI(object):
 
         # Meta
         self.name = "Nagstamon"
-        self.version = "0.9.12-devel"
+        self.version = "0.9.12-gtk3-devel"
         self.website = "http://nagstamon.ifw-dresden.de/"
-        self.copyright = "©2008-2013 Henri Wahl et al.\nh.wahl@ifw-dresden.de"
+        self.copyright = "©2008-2014 Henri Wahl et al.\nh.wahl@ifw-dresden.de"
         self.comments = "Nagios status monitor for your desktop"
 
         # initialize overall status flag
@@ -1865,13 +1865,12 @@ class Popwin(object):
         if str(self.output.conf.fullscreen) == "False":
             # for not letting statusbar throw a shadow onto popwin in any composition-window-manager this helps to
             # keep a more consistent look - copied from StatusBar... anyway, doesn't work... well, next attempt:
-            # Windows will have an entry on taskbar when not using HINT_UTILITY
+            # Windows will have an entry on taskbar when not using TypeHint UTILITY
             self.Window.set_visible(False)
             if platform.system() == "Windows":
                 self.Window.set_type_hint(Gdk.WindowTypeHint.UTILITY)
             else:
                 self.Window.set_type_hint(Gdk.WindowTypeHint.MENU)
-            #self.Window.set_visible(True)
 
             # make a nice popup of the toplevel window
             self.Window.set_decorated(False)
@@ -1967,7 +1966,6 @@ class Popwin(object):
                 self.output.statusbar.Moving = False
 
                 self.Window.show_all()
-                self.Window.set_visible(True)
 
                 # position and resize...
                 self.calculate_coordinates = True
@@ -1980,6 +1978,8 @@ class Popwin(object):
                 # register as open window
                 # use GObject.idle_add() to be thread safe
                 GObject.idle_add(self.output.AddGUILock, str(self.__class__.__name__))
+
+                self.Window.present()
 
         # position and resize...
         #self.calculate_coordinates = True
@@ -2048,32 +2048,33 @@ class Popwin(object):
         if str(self.output.conf.fullscreen) == "False":
             # catch Exception
             try:
-                # access to rootwindow to get the pointers coordinates
-                rootwin = self.output.statusbar.StatusBar.get_screen().get_root_window()
-                # get position of the pointer
-                #mousex = rootwin.get_pointer().x
-                #mousey = rootwin.get_pointer().y
-                #print rootwin.get_device_position(rootwin.get_display(event.device))
-                #foo, mousex, mousey, bar = rootwin.get_device_position(event.device)
-                mousex = event.x_root
-                mousey = event.y_root
-                # get position of popwin
-                #popwinx0 = self.Window.get_position().x
-                #popwiny0 = self.Window.get_position().y
-                popwinx0, popwiny0 = self.Window.get_position()
+                if event != None:
+                    # access to rootwindow to get the pointers coordinates
+                    rootwin = self.output.statusbar.StatusBar.get_screen().get_root_window()
+                    # get position of the pointer
+                    #mousex = rootwin.get_pointer().x
+                    #mousey = rootwin.get_pointer().y
+                    #print rootwin.get_device_position(rootwin.get_display(event.device))
+                    #foo, mousex, mousey, bar = rootwin.get_device_position(event.device)
+                    mousex = event.x_root
+                    mousey = event.y_root
+                    # get position of popwin
+                    #popwinx0 = self.Window.get_position().x
+                    #popwiny0 = self.Window.get_position().y
+                    popwinx0, popwiny0 = self.Window.get_position()
 
-                # actualize values for width and height
-                #self.popwinwidth  = self.Window.get_size().width
-                #self.popwinheight = self.Window.get_size().height
-                self.popwinwidth, self.popwinheight = self.Window.get_size()
+                    # actualize values for width and height
+                    #self.popwinwidth  = self.Window.get_size().width
+                    #self.popwinheight = self.Window.get_size().height
+                    self.popwinwidth, self.popwinheight = self.Window.get_size()
 
-                # If pointer is outside popwin close it
-                # to support Windows(TM)'s slow and event-loosing behaviour use some margin (10px) to be more tolerant to get popwin closed
-                # y-axis dooes not get extra 10 px on top for sake of combobox and x-axis on right side not because of scrollbar -
-                # so I wonder if it has any use left...
-                if str(self.conf.close_details_hover) == "True":
-                    if mousex <= popwinx0 + 10 or mousex >= (popwinx0 + self.popwinwidth) or mousey <= popwiny0 or mousey >= (popwiny0 + self.popwinheight) - 10 :
-                        self.Close()
+                    # If pointer is outside popwin close it
+                    # to support Windows(TM)'s slow and event-loosing behaviour use some margin (10px) to be more tolerant to get popwin closed
+                    # y-axis dooes not get extra 10 px on top for sake of combobox and x-axis on right side not because of scrollbar -
+                    # so I wonder if it has any use left...
+                    if str(self.conf.close_details_hover) == "True":
+                        if mousex <= popwinx0 + 10 or mousex >= (popwinx0 + self.popwinwidth) or mousey <= popwiny0 or mousey >= (popwiny0 + self.popwinheight) - 10 :
+                            self.Close()
             except:
                 import traceback
                 traceback.print_exc(file=sys.stdout)
@@ -2088,8 +2089,9 @@ class Popwin(object):
             if self.output.GUILock.has_key("Popwin"):
                 # use GObject.idle_add() to be thread safe
                 GObject.idle_add(self.output.DeleteGUILock, self.__class__.__name__)
-            #self.Window.hide()
-            self.Window.set_visible(False)
+            self.Window.hide()
+            #self.Window.set_visible(False)
+            #self.Window.move(10000,0)
             # notification off because user had a look to hosts/services recently
             self.output.NotificationOff()
 
@@ -2241,9 +2243,9 @@ class Popwin(object):
             # avoid resizing artefacts when popwin keeps opened introduced in 0.9.10
             real_winwidth, real_winheight = self.Window.get_size()
             real_scrolledwinwidth, real_scrolledwinheight = self.ScrolledWindow.get_size_request()
-            if real_scrolledwinheight + self.buttonsheight < real_winheight and not (self.popwinheight == treeviewheight + self.buttonsheight):
-                self.Window.hide()
-                self.Window.show_all()
+            ###if real_scrolledwinheight + self.buttonsheight < real_winheight and not (self.popwinheight == treeviewheight + self.buttonsheight):
+                ###self.Window.hide()
+                ###self.Window.show_all()
             self.Window.move(self.popwinx0, self.popwiny0)
             self.Window.resize(self.popwinwidth, self.popwinheight)
 
@@ -2251,8 +2253,8 @@ class Popwin(object):
             if self.Window.get_position() != (self.popwinx0, self.popwiny0):
                 # would be nice if there could be any way to avoid flickering...
                 # but move/resize only works after a hide_all()/show_all() mantra
-                self.Window.hide()
-                self.Window.show_all()
+                ###self.Window.hide()
+                ###self.Window.show_all()
                 self.Window.move(self.popwinx0, self.popwiny0)
                 self.Window.resize(self.popwinwidth, self.popwinheight)
 
