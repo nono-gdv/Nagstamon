@@ -2421,7 +2421,7 @@ class ServerVBox(Gtk.VBox):
         if str(self.output.conf.show_grid) == "True":
             self.server.TreeView.set_grid_lines(Gtk.TreeViewGridLines.BOTH)
         else:
-            self.server.TreeView.set_grid_lines(Gtk.TreeView.GridLines.NONE)
+            self.server.TreeView.set_grid_lines(Gtk.TreeViewGridLines.NONE)
         # Liststore
         self.server.ListStore = Gtk.ListStore(*self.output.LISTSTORE_COLUMNS)
 
@@ -2930,6 +2930,9 @@ class Settings(object):
         combomodel_default_sort_field = Gtk.ListStore(GObject.TYPE_STRING)
         crsf = Gtk.CellRendererText()
         self.combo_default_sort_field.pack_start(crsf, True)
+
+        for i in dir(self.combo_default_sort_field): print i
+
         self.combo_default_sort_field.set_attributes(crsf, text=0)
         for i in range(6):
             combomodel_default_sort_field.append((self.output.IDS_COLUMNS_MAP[i],))
@@ -3393,7 +3396,7 @@ class Settings(object):
         debug_to_file.set_sensitive(debug_mode.get_active())
         debug_file.set_sensitive(debug_to_file.get_active())
 
-        if debug_to_file.state == Gtk.STATE_INSENSITIVE:
+        if debug_to_file.get_state() == Gtk.StateType.INSENSITIVE:
             debug_file.set_sensitive(False)
 
 
