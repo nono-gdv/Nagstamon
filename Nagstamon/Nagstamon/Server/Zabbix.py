@@ -398,7 +398,9 @@ class ZabbixServer(GenericServer):
         pass
 
     def _set_acknowledge(self, host, service, author, comment, sticky, notify, persistent, all_services=[]):
-        triggerid = self.hosts[host].services[service].triggerid
+        # service name needs "on <hostname>" appended at the end.
+        srv_name = service + ' on ' + host
+        triggerid = self.hosts[host].services[srv_name].triggerid
         p = {
             'message': '%s: %s' % (author, comment),
             'triggerids': [triggerid],
